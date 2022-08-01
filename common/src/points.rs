@@ -3,6 +3,7 @@ use nalgebra::{Scalar, Vector4};
 use num::Float;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[repr(align(16))]
 pub struct Point3Infoed<T: Scalar, I> {
     pub coords: Vector4<T>,
     pub extra: I,
@@ -23,25 +24,39 @@ impl<T: Scalar + Float, I> Point3Infoed<T, I> {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct PointInfoHsv<T: Scalar> {
     pub h: T,
     pub s: T,
     pub v: T,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct PointInfoIntensity<T: Scalar> {
     pub intensity: T,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct PointInfoLabel {
     pub label: u32,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct PointInfoRgba {
     pub rgba: u32,
 }
 
-pub struct PointInfoRgbaLabel {
-    pub rgba: u32,
-    pub label: u32,
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct PointInfoNormal<T: Scalar> {
+    pub normal: Vector4<T>,
+    pub curvature: T,
 }
+
+pub type Point3H<T> = Point3Infoed<T, PointInfoHsv<T>>;
+pub type Point3I<T> = Point3Infoed<T, PointInfoIntensity<T>>;
+pub type Point3L<T> = Point3Infoed<T, PointInfoLabel>;
+pub type Point3R<T> = Point3Infoed<T, PointInfoRgba>;
+pub type Point3N<T> = Point3Infoed<T, PointInfoNormal<T>>;
+pub type Point3RN<T> = Point3Infoed<T, (PointInfoRgba, PointInfoNormal<T>)>;
+pub type Point3IN<T> = Point3Infoed<T, (PointInfoIntensity<T>, PointInfoNormal<T>)>;
+pub type Point3LN<T> = Point3Infoed<T, (PointInfoLabel, PointInfoNormal<T>)>;

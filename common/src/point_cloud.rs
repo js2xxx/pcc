@@ -325,7 +325,9 @@ impl<T: Scalar + Float + PartialOrd, I> PointCloud<Point3Infoed<T, I>> {
 impl<T: Scalar + Float + SimdValue<Element = T, SimdBool = bool>, I>
     PointCloud<Point3Infoed<T, I>>
 {
-    pub fn bound(&self) -> Option<(Vector4<T>, Vector4<T>)> {
+    /// Note: Points that are not finite (infinite, NaN, etc) are not considered into
+    /// calculations.
+    pub fn finite_bound(&self) -> Option<(Vector4<T>, Vector4<T>)> {
         if self.bounded {
             self.storage.iter().fold(None, |acc, v| match acc {
                 None => Some((v.coords, v.coords)),
@@ -356,7 +358,7 @@ impl<T: Scalar + Float + PartialOrd + ClosedSub + SimdComplexField<SimdRealField
             self.storage.iter().fold(None, |acc, v| {
                 let distance = (v.coords.xyz() - pivot).norm();
                 match acc {
-                    Some((d, c)) if distance <= d => Some((d, c)),
+                    Some((d, _)) if distance <= d => acc,
                     _ => Some((distance, v.coords)),
                 }
             })
@@ -365,7 +367,7 @@ impl<T: Scalar + Float + PartialOrd + ClosedSub + SimdComplexField<SimdRealField
                 if v.is_finite() {
                     let distance = (v.coords.xyz() - pivot).norm();
                     match acc {
-                        Some((d, c)) if distance <= d => Some((d, c)),
+                        Some((d, _)) if distance <= d => acc,
                         _ => Some((distance, v.coords)),
                     }
                 } else {
