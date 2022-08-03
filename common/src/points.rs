@@ -25,6 +25,7 @@ impl<T: Scalar + Float, I> Point3Infoed<T, I> {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[repr(align(16))]
 pub struct PointInfoHsv<T: Scalar> {
     pub h: T,
     pub s: T,
@@ -32,21 +33,25 @@ pub struct PointInfoHsv<T: Scalar> {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[repr(align(16))]
 pub struct PointInfoIntensity<T: Scalar> {
     pub intensity: T,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[repr(align(16))]
 pub struct PointInfoLabel {
     pub label: u32,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[repr(align(16))]
 pub struct PointInfoRgba {
     pub rgba: u32,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[repr(align(16))]
 pub struct PointInfoNormal<T: Scalar> {
     pub normal: Vector4<T>,
     pub curvature: T,
