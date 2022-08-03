@@ -8,7 +8,7 @@ use std::ptr::NonNull;
 use nalgebra::{ComplexField, Scalar, Vector4};
 use node::Node;
 
-pub use self::result::ResultSet;
+pub use self::result::*;
 
 pub struct KdTree<'a, T: Scalar> {
     root: Option<NonNull<Node<'a, T>>>,
