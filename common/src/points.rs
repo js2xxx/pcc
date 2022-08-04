@@ -9,6 +9,12 @@ pub struct Point3Infoed<T: Scalar, I> {
     pub extra: I,
 }
 
+impl<T: Scalar, I> AsRef<Vector4<T>> for Point3Infoed<T, I> {
+    fn as_ref(&self) -> &Vector4<T> {
+        &self.coords
+    }
+}
+
 impl<T: Scalar + Default, I: Default> Default for Point3Infoed<T, I> {
     fn default() -> Self {
         Self {

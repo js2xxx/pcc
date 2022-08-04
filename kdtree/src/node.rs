@@ -1,7 +1,7 @@
 use std::ptr::NonNull;
 
 use bitvec::vec::BitVec;
-use nalgebra::{ComplexField, Scalar, Vector4};
+use nalgebra::{ComplexField, Scalar, Vector3, Vector4};
 
 use crate::ResultSet;
 
@@ -24,8 +24,9 @@ impl<'a, T: Scalar> Node<'a, T> {
     }
 
     /// # Safety
-    /// 
-    /// The caller must not use the data in the node after calling this function.
+    ///
+    /// The caller must not use the data in the node after calling this
+    /// function.
     pub(crate) unsafe fn destroy(&mut self) {
         match self {
             Node::Leaf { .. } => {}
@@ -37,8 +38,132 @@ impl<'a, T: Scalar> Node<'a, T> {
                 right.as_mut().destroy();
 
                 let _ = (Box::from_raw(left.as_ptr()), Box::from_raw(right.as_ptr()));
-            },
+            }
         }
+    }
+}
+
+fn cut_split<T: Scalar + PartialOrd, P: AsRef<Vector4<T>>>(
+    coords: &[P],
+    indices: &mut [usize],
+    dim: usize,
+    value: T,
+) -> (usize, usize) {
+    let mut left = 0;
+    let mut right = indices.len() - 1;
+    loop {
+        while left <= right && coords[indices[left]].as_ref()[dim] < value {
+            left += 1
+        }
+        while left <= right && coords[indices[right]].as_ref()[dim] >= value {
+            right -= 1
+        }
+        if left > right {
+            break;
+        }
+        indices.swap(left, right);
+        left += 1;
+        right -= 1;
+    }
+
+    let limit_left = left;
+    right = indices.len() - 1;
+    loop {
+        while left <= right && coords[indices[left]].as_ref()[dim] <= value {
+            left += 1
+        }
+        while left <= right && coords[indices[right]].as_ref()[dim] > value {
+            right -= 1
+        }
+        if left > right {
+            break;
+        }
+        indices.swap(left, right);
+        left += 1;
+        right -= 1;
+    }
+
+    let limit_right = left;
+
+    (limit_left, limit_right)
+}
+
+fn cut<T: Scalar + ComplexField<RealField = T> + Copy + PartialOrd, P: AsRef<Vector4<T>>>(
+    coords: &[P],
+    indices: &mut [usize],
+    last: Option<usize>,
+) -> (usize, usize, T) {
+    let sum = { indices.iter() }
+        .map(|&i| coords[i].as_ref().xyz())
+        .fold(Vector3::zeros(), |acc, coord| acc + coord);
+
+    let mean = sum / T::from_usize(coords.len()).unwrap();
+    let var = { indices.iter() }.map(|&i| coords[i].as_ref().xyz()).fold(
+        Vector3::zeros(),
+        |acc, coord| {
+            let diff = coord - mean;
+            acc + diff.component_mul(&diff)
+        },
+    );
+
+    let dim = {
+        let dim = var.imax();
+        if Some(dim) == last {
+            var.iter()
+                .enumerate()
+                .filter(|(i, _)| i != &dim)
+                .fold(None, |acc, (i, v)| match acc {
+                    Some(d) if v > &var[d] => Some(i),
+                    _ => acc,
+                })
+                .unwrap()
+        } else {
+            dim
+        }
+    };
+
+    let value = mean[dim];
+    let (limit_left, limit_right) = cut_split(coords, indices, dim, value);
+
+    let mid = indices.len() / 2;
+    let split = if limit_left > mid {
+        limit_left
+    } else if limit_right < mid {
+        limit_right
+    } else {
+        mid
+    };
+
+    (split, dim, mean[dim])
+}
+
+impl<'a, T: Scalar + ComplexField<RealField = T> + Copy + PartialOrd> Node<'a, T> {
+    pub fn build<P>(
+        start_index: usize,
+        coords: &'a [P],
+        indices: &mut [usize],
+        last_dim: Option<usize>,
+    ) -> NonNull<Self>
+    where
+        P: AsRef<Vector4<T>>,
+    {
+        let node = if indices.len() == 1 {
+            let coord: &'a Vector4<T> = coords[indices[0]].as_ref();
+            Node::new_leaf(start_index, coord)
+        } else {
+            let (split, dim, value) = cut(coords, indices, last_dim);
+            let (left, right) = indices.split_at_mut(split);
+
+            let left = Node::build(start_index, coords, left, Some(dim));
+            let right = Node::build(start_index + split, coords, right, Some(dim));
+
+            Node::Branch {
+                children: [left, right],
+                dim,
+                value,
+            }
+        };
+        Box::leak(Box::new(node)).into()
     }
 }
 
@@ -109,11 +234,11 @@ fn check_and_set(index: usize, checker: &mut BitVec) -> bool {
     ret
 }
 
-impl<'a, T: Scalar + Copy + ComplexField<RealField = T> + Ord> Node<'a, T> {
+impl<'a, T: Scalar + Copy + ComplexField<RealField = T> + PartialOrd> Node<'a, T> {
     fn search_one(
         &self,
         pivot: &Vector4<T>,
-        result: &mut impl ResultSet<T, &'a Vector4<T>>,
+        result: &mut impl ResultSet<Key = T, Value = &'a Vector4<T>>,
         other_branches: &mut Vec<NonNull<Node<'a, T>>>,
         checker: &mut BitVec,
     ) {
@@ -151,7 +276,11 @@ impl<'a, T: Scalar + Copy + ComplexField<RealField = T> + Ord> Node<'a, T> {
         }
     }
 
-    pub fn search_exact(&self, pivot: &Vector4<T>, result: &mut impl ResultSet<T, &'a Vector4<T>>) {
+    pub fn search_exact(
+        &self,
+        pivot: &Vector4<T>,
+        result: &mut impl ResultSet<Key = T, Value = &'a Vector4<T>>,
+    ) {
         match *self {
             Node::Leaf { coord, .. } => {
                 let distance = (coord.xyz() - pivot.xyz()).norm();
@@ -180,7 +309,11 @@ impl<'a, T: Scalar + Copy + ComplexField<RealField = T> + Ord> Node<'a, T> {
         }
     }
 
-    pub fn search(&self, pivot: &Vector4<T>, result: &mut impl ResultSet<T, &'a Vector4<T>>) {
+    pub fn search(
+        &self,
+        pivot: &Vector4<T>,
+        result: &mut impl ResultSet<Key = T, Value = &'a Vector4<T>>,
+    ) {
         let mut other_branches = Vec::new();
         let mut checker = BitVec::new();
 

@@ -325,8 +325,8 @@ impl<T: Scalar + Float + PartialOrd, I> PointCloud<Point3Infoed<T, I>> {
 impl<T: Scalar + Float + SimdValue<Element = T, SimdBool = bool>, I>
     PointCloud<Point3Infoed<T, I>>
 {
-    /// Note: Points that are not finite (infinite, NaN, etc) are not considered into
-    /// calculations.
+    /// Note: Points that are not finite (infinite, NaN, etc) are not considered
+    /// into calculations.
     pub fn finite_bound(&self) -> Option<(Vector4<T>, Vector4<T>)> {
         if self.bounded {
             self.storage.iter().fold(None, |acc, v| match acc {
