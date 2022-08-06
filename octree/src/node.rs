@@ -32,7 +32,7 @@ impl<B, L> Node<B, L> {
 impl<B, L> Node<B, L> {
     pub fn find(&self, key: &[usize; 3], depth: usize) -> Option<NonNull<L>> {
         let mut node = self;
-        let mut depth_mask = (1 << depth) - 1;
+        let mut depth_mask = 1 << (depth - 1);
         loop {
             match node {
                 Node::Leaf { content } => break Some(content.into()),
@@ -55,7 +55,7 @@ impl<B, L> Node<B, L> {
         B: Default,
     {
         let mut node = self;
-        let mut depth_mask = (1 << depth) - 1;
+        let mut depth_mask = 1 << (depth - 1);
         loop {
             match node {
                 Node::Leaf { content: c } => break Some(mem::replace(c, content())),
@@ -89,7 +89,7 @@ impl<B, L> Node<B, L> {
     pub fn remove(&mut self, key: &[usize; 3], depth: usize) -> Option<L> {
         match self {
             Node::Leaf { .. } => panic!("Leaf node with no parents can't be removed here"),
-            Node::Branch { children, .. } => remove_recursive(children, key, (1 << depth) - 1),
+            Node::Branch { children, .. } => remove_recursive(children, key, 1 << (depth - 1)),
         }
     }
 }
@@ -137,10 +137,9 @@ impl<B, L> Node<B, L> {
             Node::Leaf { content } => leaves.push(*content),
             Node::Branch { children, .. } => {
                 let mut pattern = 0;
-                for child in children {
-                    pattern <<= 1;
+                for (index, child) in children.iter().enumerate() {
                     if child.is_some() {
-                        pattern |= 1;
+                        pattern |= 1 << index;
                     }
                 }
 

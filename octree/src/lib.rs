@@ -21,6 +21,10 @@ impl<T> OcTree<T> {
         self.depth
     }
 
+    pub fn max_key(&self) -> usize {
+        (1 << self.depth) - 1
+    }
+
     pub fn insert_with<F>(&mut self, key: &[usize; 3], content: F) -> Option<T>
     where
         F: FnOnce() -> T,
@@ -71,11 +75,11 @@ impl<T> OcTree<T> {
 
     pub fn decode(
         input: &mut impl io::Read,
-        leaves: &mut impl Iterator<Item = T>,
+        leaves: impl IntoIterator<Item = T>,
         depth: usize,
     ) -> io::Result<Self> {
-        let depth_mask = (1 << depth) - 1;
-        let root = Node::decode(input, leaves, depth_mask)?;
+        let depth_mask = 1 << (depth - 1);
+        let root = Node::decode(input, &mut leaves.into_iter(), depth_mask)?;
         Ok(OcTree {
             root: Some(root),
             depth,
@@ -91,5 +95,60 @@ impl<T> Drop for OcTree<T> {
                 let _ = Box::from_raw(root.as_ptr());
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_oc_tree() {
+        let mut tree = OcTree::new(3);
+        assert_eq!(tree.max_key(), 7);
+
+        let ret = tree.insert(&[3, 2, 3], 123);
+        assert_eq!(ret, None);
+
+        let ret = tree.get(&[3, 2, 3]);
+        assert_eq!(ret, Some(&123));
+
+        let ret = tree.insert(&[3, 2, 3], 234);
+        assert_eq!(ret, Some(123));
+
+        let ret = tree.get(&[3, 2, 3]);
+        assert_eq!(ret, Some(&234));
+
+        tree.insert(&[1, 4, 1], 34634);
+        tree.insert(&[6, 2, 5], 23424);
+        tree.insert(&[2, 5, 3], 34323);
+        tree.insert(&[7, 1, 6], 64352);
+
+        let ret = tree.remove(&[2, 5, 3]);
+        assert_eq!(ret, Some(34323));
+
+        let ret = tree.get(&[2, 5, 3]);
+        assert_eq!(ret, None);
+    }
+
+    #[test]
+    fn test_oc_tree_serde() {
+        let mut tree = OcTree::new(2);
+        assert_eq!(tree.max_key(), 3);
+
+        tree.insert(&[0, 0, 0], 0);
+        tree.insert(&[2, 3, 2], 232);
+
+        let mut data = Vec::new();
+        let ret = tree.encode(&mut data).unwrap();
+        assert_eq!(ret, vec![0, 232]);
+        assert_eq!(data, vec![0b_1000_0001, 0b_0000_0001, 0b_0000_0100]);
+
+        let mut de = OcTree::decode(&mut data.as_slice(), ret, 2).unwrap();
+        let ret = de.get(&[0, 0, 0]);
+        assert_eq!(ret, Some(&0));
+
+        let ret = de.get_mut(&[2, 3, 2]);
+        assert_eq!(ret, Some(&mut 232));
     }
 }
