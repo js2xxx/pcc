@@ -1,4 +1,4 @@
-use std::{mem, ptr::NonNull};
+use std::{array, io, mem, ptr::NonNull};
 
 pub(crate) enum Node<B, L> {
     Leaf {
@@ -17,7 +17,19 @@ fn key_to_index(key: &[usize; 3], depth_mask: usize) -> usize {
 }
 
 impl<B, L> Node<B, L> {
-    
+    pub fn destroy_subtree(&mut self) {
+        if let Node::Branch { children, .. } = self {
+            for mut child in children.iter_mut().filter_map(|child| child.take()) {
+                unsafe {
+                    child.as_mut().destroy_subtree();
+                    let _ = Box::from_raw(child.as_ptr());
+                }
+            }
+        }
+    }
+}
+
+impl<B, L> Node<B, L> {
     pub fn find(&self, key: &[usize; 3], depth: usize) -> Option<NonNull<L>> {
         let mut node = self;
         let mut depth_mask = (1 << depth) - 1;
@@ -113,5 +125,69 @@ fn remove_recursive<B, L>(
 
             ret
         }
+    }
+}
+
+impl<B, L> Node<B, L> {
+    pub fn encode(&self, output: &mut impl io::Write, leaves: &mut Vec<L>) -> io::Result<()>
+    where
+        L: Copy,
+    {
+        match self {
+            Node::Leaf { content } => leaves.push(*content),
+            Node::Branch { children, .. } => {
+                let mut pattern = 0;
+                for child in children {
+                    pattern <<= 1;
+                    if child.is_some() {
+                        pattern |= 1;
+                    }
+                }
+
+                output.write_all(&[pattern])?;
+                for child in children.iter().flatten() {
+                    unsafe { child.as_ref() }.encode(output, leaves)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn decode(
+        input: &mut impl io::Read,
+        leaves: &mut impl Iterator<Item = L>,
+        depth_mask: usize,
+    ) -> io::Result<NonNull<Node<B, L>>>
+    where
+        B: Default,
+    {
+        let pattern = {
+            let mut byte = [0];
+            input.read_exact(&mut byte)?;
+            byte[0]
+        };
+
+        let children = array::try_from_fn::<io::Result<_>, 8, _>(|index| {
+            Ok(if pattern & (1 << index) != 0 {
+                Some(if depth_mask > 1 {
+                    Node::decode(input, leaves, depth_mask >> 1)?
+                } else {
+                    let content = leaves.next().ok_or_else(|| {
+                        io::Error::new(io::ErrorKind::NotFound, "There're too few leaves")
+                    })?;
+                    let data = Node::Leaf { content };
+                    Box::leak(Box::new(data)).into()
+                })
+            } else {
+                None
+            })
+        })?;
+
+        let data = Node::Branch {
+            children,
+            _content: Default::default(),
+        };
+
+        Ok(Box::leak(Box::new(data)).into())
     }
 }
