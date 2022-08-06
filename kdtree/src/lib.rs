@@ -83,7 +83,7 @@ impl<'a, T: Scalar> Drop for KdTree<'a, T> {
 impl<'a, T: Scalar + ComplexField<RealField = T> + Copy + PartialOrd>
     pcc_common::search::Searcher<'a, T> for KdTree<'a, T>
 {
-    fn from_point_cloud<I>(point_cloud: &'a PointCloud<Point3Infoed<T, I>>) -> Self {
+    fn from_point_cloud<I>(point_cloud: &'a PointCloud<Point3Infoed<T, I>>, _: ()) -> Self {
         if !point_cloud.is_empty() {
             let mut indices = (0..point_cloud.len()).collect::<Vec<_>>();
             let root = Node::build(0, point_cloud, &mut indices, None);

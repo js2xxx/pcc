@@ -11,7 +11,9 @@ pub enum SearchType<T> {
 }
 
 pub trait Searcher<'a, T: Scalar> {
-    fn from_point_cloud<I>(point_cloud: &'a PointCloud<Point3Infoed<T, I>>) -> Self;
+    type FromExtra = ();
+
+    fn from_point_cloud<I>(point_cloud: &'a PointCloud<Point3Infoed<T, I>>, extra: Self::FromExtra) -> Self;
 
     fn search(&self, pivot: &Vector4<T>, ty: SearchType<T>, result: &mut Vec<&'a Vector4<T>>);
 

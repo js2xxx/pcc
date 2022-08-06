@@ -10,3 +10,4 @@ version = "0.1.0"
 pcc-common = {path = "../common"}
 # External crates
 nalgebra = "0"
+num = "0"

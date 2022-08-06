@@ -86,6 +86,45 @@ impl<B, L> Node<B, L> {
         }
     }
 
+    pub fn get_or_insert_with<F>(&mut self, key: &[usize; 3], depth: usize, content: F) -> &mut L
+    where
+        F: FnOnce() -> L,
+        B: Default,
+    {
+        let mut node = self;
+        let mut depth_mask = 1 << (depth - 1);
+        loop {
+            match node {
+                Node::Leaf { content: c } => break c,
+                Node::Branch { children, .. } => {
+                    let index = key_to_index(key, depth_mask);
+
+                    let child = match &mut children[index] {
+                        Some(child) => child,
+                        child @ None if depth_mask > 1 => {
+                            let data = Node::Branch {
+                                children: [None; 8],
+                                _content: Default::default(),
+                            };
+                            child.insert(Box::leak(Box::new(data)).into())
+                        }
+                        child @ None => {
+                            let data = Node::Leaf { content: content() };
+                            let pointer = child.insert(Box::leak(Box::new(data)).into());
+                            match unsafe { pointer.as_mut() } {
+                                Node::Leaf { content } => break content,
+                                Node::Branch { .. } => unreachable!(),
+                            }
+                        }
+                    };
+
+                    node = unsafe { child.as_mut() };
+                    depth_mask >>= 1;
+                }
+            }
+        }
+    }
+
     pub fn remove(&mut self, key: &[usize; 3], depth: usize) -> Option<L> {
         match self {
             Node::Leaf { .. } => panic!("Leaf node with no parents can't be removed here"),
