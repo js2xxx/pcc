@@ -4,12 +4,16 @@
 mod base;
 mod centroid;
 mod count;
+mod iter;
 mod node;
 mod point_cloud;
 mod search;
 
-pub use base::OcTree;
-pub use centroid::OcTreePcCentroid;
-pub use count::OcTreePcCount;
-pub use point_cloud::{CreateOptions, OcTreePc};
-pub use search::OcTreePcSearch;
+pub use self::{
+    base::OcTree,
+    centroid::OcTreePcCentroid,
+    count::OcTreePcCount,
+    iter::{DepthIter, DepthIterMut},
+    point_cloud::{CreateOptions, OcTreePc},
+    search::OcTreePcSearch,
+};

@@ -1,6 +1,6 @@
 use std::{io, ptr::NonNull};
 
-use crate::node::Node;
+use crate::{iter::*, node::Node};
 
 #[derive(Debug)]
 pub struct OcTree<T> {
@@ -120,6 +120,32 @@ impl<T> Drop for OcTree<T> {
                 root.as_mut().destroy_subtree();
                 let _ = Box::from_raw(root.as_ptr());
             }
+        }
+    }
+}
+
+impl<T> OcTree<T> {
+    pub(crate) fn node_depth_iter(&self) -> NodeDepthIter<T> {
+        NodeDepthIter {
+            inner: self.root.map(crate::iter::RawDepthIter::new),
+        }
+    }
+
+    pub(crate) fn node_depth_iter_mut(&mut self) -> NodeDepthIterMut<T> {
+        NodeDepthIterMut {
+            inner: self.root.map(crate::iter::RawDepthIter::new),
+        }
+    }
+
+    pub fn depth_iter(&self) -> DepthIter<T> {
+        DepthIter {
+            inner: self.node_depth_iter(),
+        }
+    }
+
+    pub fn depth_iter_mut(&mut self) -> DepthIterMut<T> {
+        DepthIterMut {
+            inner: self.node_depth_iter_mut(),
         }
     }
 }
