@@ -1,6 +1,6 @@
 // use nalgebra::Scalar;
 
-use nalgebra::{Vector4, Scalar};
+use nalgebra::{Scalar, Vector4};
 
 use crate::{point_cloud::PointCloud, points::Point3Infoed};
 
@@ -13,11 +13,19 @@ pub enum SearchType<T> {
 pub trait Searcher<'a, T: Scalar> {
     type FromExtra = ();
 
-    fn from_point_cloud<I>(point_cloud: &'a PointCloud<Point3Infoed<T, I>>, extra: Self::FromExtra) -> Self;
+    fn from_point_cloud<I>(
+        point_cloud: &'a PointCloud<Point3Infoed<T, I>>,
+        extra: Self::FromExtra,
+    ) -> Self;
 
     fn search(&self, pivot: &Vector4<T>, ty: SearchType<T>, result: &mut Vec<&'a Vector4<T>>);
 
-    fn search_exact(&self, pivot: &Vector4<T>, ty: SearchType<T>, result: &mut Vec<&'a Vector4<T>>) {
+    fn search_exact(
+        &self,
+        pivot: &Vector4<T>,
+        ty: SearchType<T>,
+        result: &mut Vec<&'a Vector4<T>>,
+    ) {
         self.search(pivot, ty, result)
     }
 }

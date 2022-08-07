@@ -12,6 +12,10 @@ impl<T> OcTree<T> {
         OcTree { root: None, depth }
     }
 
+    pub(crate) fn root(&self) -> Option<&Node<(), T>> {
+        self.root.map(|node| unsafe { node.as_ref() })
+    }
+
     pub fn depth(&self) -> usize {
         self.depth
     }

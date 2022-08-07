@@ -1,5 +1,6 @@
 use std::{array, io, mem, ptr::NonNull};
 
+#[derive(Debug)]
 pub(crate) enum Node<B, L> {
     Leaf {
         content: L,
@@ -10,14 +11,18 @@ pub(crate) enum Node<B, L> {
     },
 }
 
-fn key_to_index(key: &[usize; 3], depth_mask: usize) -> usize {
+pub(crate) fn key_to_index(key: &[usize; 3], depth_mask: usize) -> usize {
     (((key[2] & depth_mask != 0) as usize) << 2)
         | (((key[1] & depth_mask != 0) as usize) << 1)
         | (key[0] & depth_mask != 0) as usize
 }
 
+pub(crate) fn key_child(key: &[usize; 3], index: usize) -> [usize; 3] {
+    array::from_fn(|ki| key[ki] << 1 | (index & (1 << ki) != 0) as usize)
+}
+
 impl<B, L> Node<B, L> {
-    pub fn destroy_subtree(&mut self) {
+    pub(super) fn destroy_subtree(&mut self) {
         if let Node::Branch { children, .. } = self {
             for mut child in children.iter_mut().filter_map(|child| child.take()) {
                 unsafe {
