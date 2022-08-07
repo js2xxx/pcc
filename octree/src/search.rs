@@ -1,4 +1,4 @@
-use std::{array, ops::Deref};
+use std::ops::Deref;
 
 use nalgebra::{ComplexField, Scalar, Vector4};
 use num::{Float, ToPrimitive};
@@ -6,88 +6,38 @@ use pcc_common::{point_cloud::PointCloud, points::Point3Infoed, search::SearchTy
 
 use crate::{
     node::{key_child, Node},
-    OcTree,
+    point_cloud::{CreateOptions, OcTreePc},
 };
 
-pub struct OcTreePCSearcher<'a, T: Scalar> {
-    inner: OcTree<Vec<&'a Vector4<T>>>,
-    mul: T,
-    add: Vector4<T>,
+pub struct OcTreePcSearch<'a, T: Scalar> {
+    inner: OcTreePc<Vec<&'a Vector4<T>>, T>,
 }
 
-pub struct CreateOptions<T> {
-    pub resolution: T,
-}
-
-impl<'a, T: Scalar + num::Zero> Default for OcTreePCSearcher<'a, T> {
+impl<'a, T: Scalar + num::Zero> Default for OcTreePcSearch<'a, T> {
     fn default() -> Self {
-        OcTreePCSearcher {
-            inner: OcTree::new(1),
-            mul: T::zero(),
-            add: Vector4::zeros(),
+        OcTreePcSearch {
+            inner: Default::default(),
         }
     }
 }
 
-fn key_to_coords<T: Scalar + ComplexField<RealField = T>>(
-    key: &[usize; 3],
-    mul: T,
-    add: &Vector4<T>,
-) -> Vector4<T> {
-    let key = Vector4::from([
-        T::from_usize(key[0]).unwrap(),
-        T::from_usize(key[1]).unwrap(),
-        T::from_usize(key[2]).unwrap(),
-        T::zero(),
-    ]);
-    let mut result = key.scale(mul) + add;
-    result.w = T::one();
-    result
-}
-
-fn coords_to_key<T: Scalar + ComplexField<RealField = T> + ToPrimitive>(
-    coords: &Vector4<T>,
-    mul: T,
-    add: &Vector4<T>,
-) -> [usize; 3] {
-    let key = (coords - add).scale(mul);
-    let mut iter = key.into_iter().filter_map(|v| v.to_usize());
-    array::from_fn(|_| iter.next().unwrap())
-}
-
-impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy> OcTreePCSearcher<'a, T> {
-    pub fn key_to_coords(&self, key: &[usize; 3]) -> Vector4<T> {
-        key_to_coords(key, self.mul, &self.add)
-    }
-
-    pub fn coords_to_key(&self, coords: &Vector4<T>) -> [usize; 3] {
-        coords_to_key(coords, self.mul, &self.add)
-    }
-
-    fn side(&self, depth: usize) -> T {
-        self.mul * T::from_usize((self.inner.max_key() + 1) >> depth).unwrap()
-    }
-
-    fn diagonal(&self, depth: usize) -> T {
-        self.side(depth) * T::from_usize(3).unwrap().sqrt()
-    }
-
+impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy> OcTreePcSearch<'a, T> {
     fn half_diagonal(&self, depth: usize) -> T {
-        self.diagonal(depth) / (T::one() + T::one())
+        self.inner.diagonal(depth) / (T::one() + T::one())
     }
 
     fn center(&self, key: &[usize; 3], depth: usize) -> Vector4<T> {
-        let radius = self.side(depth) / (T::one() + T::one());
-        let coords = self.key_to_coords(key);
+        let radius = self.inner.side(depth) / (T::one() + T::one());
+        let coords = self.inner.key_to_coords(key);
         let mut ret = coords.map(|v| v + radius);
         ret.w = T::one();
         ret
     }
 }
 
-impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy> OcTreePCSearcher<'a, T> {
+impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy> OcTreePcSearch<'a, T> {
     pub fn voxel_search<'b>(&'b self, pivot: &Vector4<T>) -> &'b [&'a Vector4<T>] {
-        let key = self.coords_to_key(pivot);
+        let key = self.inner.coords_to_key(pivot);
         self.inner.get(&key).map_or(&[], Deref::deref)
     }
 }
@@ -99,9 +49,9 @@ struct NodeKey<'b, 'a, T: Scalar> {
 }
 
 impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialOrd>
-    OcTreePCSearcher<'a, T>
+    OcTreePcSearch<'a, T>
 {
-    fn knn_search(&self, pivot: &Vector4<T>, num: usize, result_set: &mut Vec<&'a Vector4<T>>) {
+    pub fn knn_search(&self, pivot: &Vector4<T>, num: usize, result_set: &mut Vec<&'a Vector4<T>>) {
         let mut rs = Vec::new();
         if let Some(node) = self.inner.root() {
             self.knn_search_recursive(&NodeKey { node, key: [0; 3] }, pivot, num, 1, None, &mut rs);
@@ -192,9 +142,14 @@ impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialO
 }
 
 impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialOrd>
-    OcTreePCSearcher<'a, T>
+    OcTreePcSearch<'a, T>
 {
-    fn radius_search(&self, pivot: &Vector4<T>, radius: T, result_set: &mut Vec<&'a Vector4<T>>) {
+    pub fn radius_search(
+        &self,
+        pivot: &Vector4<T>,
+        radius: T,
+        result_set: &mut Vec<&'a Vector4<T>>,
+    ) {
         result_set.clear();
         if let Some(node) = self.inner.root() {
             self.radius_search_recursive(
@@ -251,42 +206,22 @@ impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialO
 }
 
 impl<'a, T: Scalar + Float + ComplexField<RealField = T>> pcc_common::search::Searcher<'a, T>
-    for OcTreePCSearcher<'a, T>
+    for OcTreePcSearch<'a, T>
 {
     type FromExtra = CreateOptions<T>;
     fn from_point_cloud<I>(
         point_cloud: &'a PointCloud<Point3Infoed<T, I>>,
         options: CreateOptions<T>,
     ) -> Self {
-        let (min, max) = match point_cloud.finite_bound() {
-            Some(bound) => bound,
-            None => return Default::default(),
-        };
-
-        let mul = options.resolution;
-        let len = max - min;
-
-        let depth = Float::ceil(Float::log2((len / mul).xyz().max()))
-            .to_usize()
-            .expect("Failed to get the depth of the OC tree");
-
-        let max_value = if depth >= 1 { (1 << depth) - 1 } else { 0 };
-
-        let add = {
-            let center_value = T::from_usize(max_value / 2).unwrap();
-            let center_key = Vector4::from([center_value, center_value, center_value, T::one()]);
-            let center = (max + min) / (T::one() + T::one());
-            center - center_key
-        };
-
-        let mut inner = OcTree::new(depth);
-        for point in point_cloud.iter() {
-            let key = coords_to_key(&point.coords, mul, &add);
-            let vec = inner.get_or_insert_with(&key, Vec::new);
-            vec.push(&point.coords);
+        OcTreePcSearch {
+            inner: OcTreePc::from_point_cloud(point_cloud, options, |tree, mul, add| {
+                for point in point_cloud.iter() {
+                    let key = crate::point_cloud::coords_to_key(&point.coords, mul, add);
+                    let vec = tree.get_or_insert_with(&key, Vec::new);
+                    vec.push(&point.coords);
+                }
+            }),
         }
-
-        OcTreePCSearcher { inner, mul, add }
     }
 
     fn search(&self, pivot: &Vector4<T>, ty: SearchType<T>, result: &mut Vec<&'a Vector4<T>>) {
