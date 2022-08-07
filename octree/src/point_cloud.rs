@@ -1,4 +1,7 @@
-use std::{array, ops::Deref};
+use std::{
+    array,
+    ops::{Deref, DerefMut},
+};
 
 use nalgebra::{ComplexField, Scalar, Vector4};
 use num::{Float, ToPrimitive};
@@ -6,10 +9,12 @@ use pcc_common::{point_cloud::PointCloud, points::Point3Infoed};
 
 use crate::OcTree;
 
+#[derive(Debug)]
 pub struct OcTreePc<L, T: Scalar> {
     pub(crate) inner: OcTree<L>,
     pub(crate) mul: T,
     pub(crate) add: Vector4<T>,
+    bound: (Vector4<T>, Vector4<T>),
 }
 
 impl<L, T: Scalar + num::Zero> Default for OcTreePc<L, T> {
@@ -18,6 +23,7 @@ impl<L, T: Scalar + num::Zero> Default for OcTreePc<L, T> {
             inner: OcTree::new(1),
             mul: T::zero(),
             add: Vector4::zeros(),
+            bound: (Vector4::zeros(), Vector4::zeros()),
         }
     }
 }
@@ -60,7 +66,12 @@ impl<L, T: Scalar + Float + ComplexField<RealField = T>> OcTreePc<L, T> {
         let mut inner = OcTree::new(depth);
         build(&mut inner, mul, &add);
 
-        OcTreePc { inner, mul, add }
+        OcTreePc {
+            inner,
+            mul,
+            add,
+            bound: (min, max),
+        }
     }
 }
 
@@ -69,6 +80,12 @@ impl<L, T: Scalar> Deref for OcTreePc<L, T> {
 
     fn deref(&self) -> &Self::Target {
         &self.inner
+    }
+}
+
+impl<L, T: Scalar> DerefMut for OcTreePc<L, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
     }
 }
 
@@ -98,12 +115,14 @@ pub(crate) fn coords_to_key<T: Scalar + ComplexField<RealField = T> + ToPrimitiv
     array::from_fn(|_| iter.next().unwrap())
 }
 
-impl<L, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy> OcTreePc<L, T> {
+impl<L, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialOrd> OcTreePc<L, T> {
     pub fn key_to_coords(&self, key: &[usize; 3]) -> Vector4<T> {
+        assert!(key.iter().all(|&v| v <= self.inner.max_key()));
         key_to_coords(key, self.mul, &self.add)
     }
 
     pub fn coords_to_key(&self, coords: &Vector4<T>) -> [usize; 3] {
+        assert!(&self.bound.0 <= coords && coords <= &self.bound.1);
         coords_to_key(coords, self.mul, &self.add)
     }
 

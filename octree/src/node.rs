@@ -35,17 +35,17 @@ impl<B, L> Node<B, L> {
 }
 
 impl<B, L> Node<B, L> {
-    pub fn find(&self, key: &[usize; 3], depth: usize) -> Option<NonNull<L>> {
+    pub fn find(&self, key: &[usize; 3], depth: usize) -> NonNull<Node<B, L>> {
         let mut node = self;
         let mut depth_mask = 1 << (depth - 1);
         loop {
             match node {
-                Node::Leaf { content } => break Some(content.into()),
+                Node::Leaf { .. } => break node.into(),
                 Node::Branch { children, .. } => {
                     let index = key_to_index(key, depth_mask);
                     let child = match children[index] {
                         Some(child) => child,
-                        None => break None,
+                        None => break node.into(),
                     };
                     node = unsafe { child.as_ref() };
                     depth_mask >>= 1;
