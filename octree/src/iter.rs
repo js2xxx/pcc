@@ -1,18 +1,20 @@
 use std::{marker::PhantomData, ptr::NonNull};
 
-use crate::node::Node;
+use crate::node::{key_child, Node};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct DepthIterItem<'a, B, L> {
     node: NonNull<Node<B, L>>,
+    key: [usize; 3],
     index: usize,
     _marker: PhantomData<&'a Node<B, L>>,
 }
 
 impl<'a, B, L> DepthIterItem<'a, B, L> {
-    fn new(node: NonNull<Node<B, L>>, index: usize) -> Self {
+    fn new(node: NonNull<Node<B, L>>, key: [usize; 3], index: usize) -> Self {
         DepthIterItem {
             node,
+            key,
             index,
             _marker: PhantomData,
         }
@@ -27,13 +29,13 @@ pub(crate) struct RawDepthIter<'a, B, L> {
 impl<'a, B, L> RawDepthIter<'a, B, L> {
     pub fn new(node: NonNull<Node<B, L>>) -> Self {
         RawDepthIter {
-            stack: vec![DepthIterItem::new(node, 0)],
+            stack: vec![DepthIterItem::new(node, [0; 3], 0)],
         }
     }
 }
 
 impl<'a, B, L> Iterator for RawDepthIter<'a, B, L> {
-    type Item = NonNull<Node<B, L>>;
+    type Item = ([usize; 3], usize, NonNull<Node<B, L>>);
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -53,18 +55,19 @@ impl<'a, B, L> Iterator for RawDepthIter<'a, B, L> {
                     None => back.index += 1,
                     Some(child) => {
                         back.index += 1;
-                        break Some(child);
+                        break Some((key_child(&back.key, back.index), child));
                     }
                 }
             };
 
             match ret {
-                Some(child) => {
+                Some((key, child)) => {
                     let c = unsafe { child.as_ref() };
+                    let depth = self.stack.len();
                     if matches!(c, Node::Branch { .. }) {
-                        self.stack.push(DepthIterItem::new(child, 0))
+                        self.stack.push(DepthIterItem::new(child, key, 0))
                     }
-                    break Some(child);
+                    break Some((key, depth, child));
                 }
                 None => {
                     self.stack.pop();
@@ -80,12 +83,13 @@ pub(crate) struct NodeDepthIter<'a, T> {
 }
 
 impl<'a, T> Iterator for NodeDepthIter<'a, T> {
-    type Item = &'a Node<(), T>;
+    type Item = ([usize; 3], usize, &'a Node<(), T>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner
-            .as_mut()
-            .and_then(|iter| iter.next().map(|node| unsafe { node.as_ref() }))
+        self.inner.as_mut().and_then(|iter| {
+            iter.next()
+                .map(|(key, depth, node)| (key, depth, unsafe { node.as_ref() }))
+        })
     }
 }
 
@@ -95,12 +99,13 @@ pub(crate) struct NodeDepthIterMut<'a, T> {
 }
 
 impl<'a, T> Iterator for NodeDepthIterMut<'a, T> {
-    type Item = &'a mut Node<(), T>;
+    type Item = ([usize; 3], usize, &'a mut Node<(), T>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner
-            .as_mut()
-            .and_then(|iter| iter.next().map(|mut node| unsafe { node.as_mut() }))
+        self.inner.as_mut().and_then(|iter| {
+            iter.next()
+                .map(|(key, depth, mut node)| (key, depth, unsafe { node.as_mut() }))
+        })
     }
 }
 
@@ -110,13 +115,13 @@ pub struct DepthIter<'a, T> {
 }
 
 impl<'a, T> Iterator for DepthIter<'a, T> {
-    type Item = &'a T;
+    type Item = ([usize; 3], usize, &'a T);
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match self.inner.next() {
-                Some(node) => match node {
-                    Node::Leaf { content } => break Some(content),
+                Some((key, depth, node)) => match node {
+                    Node::Leaf { content } => break Some((key, depth, content)),
                     Node::Branch { .. } => {}
                 },
                 None => break None,
@@ -131,13 +136,13 @@ pub struct DepthIterMut<'a, T> {
 }
 
 impl<'a, T> Iterator for DepthIterMut<'a, T> {
-    type Item = &'a mut T;
+    type Item = ([usize; 3], usize, &'a mut T);
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match self.inner.next() {
-                Some(node) => match node {
-                    Node::Leaf { content } => break Some(content),
+                Some((key, depth, node)) => match node {
+                    Node::Leaf { content } => break Some((key, depth, content)),
                     Node::Branch { .. } => {}
                 },
                 None => break None,

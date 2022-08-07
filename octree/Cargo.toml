@@ -11,3 +11,4 @@ pcc-common = {path = "../common"}
 # External crates
 nalgebra = "0"
 num = "0"
+petgraph = "0"

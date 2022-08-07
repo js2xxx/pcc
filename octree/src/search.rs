@@ -26,13 +26,6 @@ impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialO
         self.inner.diagonal(depth) / (T::one() + T::one())
     }
 
-    fn center(&self, key: &[usize; 3], depth: usize) -> Vector4<T> {
-        let radius = self.inner.side(depth) / (T::one() + T::one());
-        let coords = self.inner.key_to_coords(key);
-        let mut ret = coords.map(|v| v + radius);
-        ret.w = T::one();
-        ret
-    }
 }
 
 impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialOrd> OcTreePcSearch<'a, T> {
@@ -83,7 +76,7 @@ impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialO
                         node: unsafe { child.as_ref() },
                         key: key_child(&node_key.key, index),
                     };
-                    let center = self.center(&child_nk.key, depth);
+                    let center = self.inner.center(&child_nk.key, depth);
                     let distance = (center - pivot).norm();
                     (child_nk, distance)
                 })
@@ -183,7 +176,7 @@ impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialO
                     node: unsafe { child.as_ref() },
                     key: key_child(&node_key.key, index),
                 };
-                let center = self.center(&child_nk.key, depth);
+                let center = self.inner.center(&child_nk.key, depth);
                 let distance = (center - pivot).norm();
                 (distance <= radius + half_diagonal).then_some(child_nk)
             })
