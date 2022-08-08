@@ -21,14 +21,17 @@ impl<'a, T: Scalar + num::Zero> Default for OcTreePcSearch<'a, T> {
     }
 }
 
-impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialOrd> OcTreePcSearch<'a, T> {
+impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialOrd>
+    OcTreePcSearch<'a, T>
+{
     fn half_diagonal(&self, depth: usize) -> T {
         self.inner.diagonal(depth) / (T::one() + T::one())
     }
-
 }
 
-impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialOrd> OcTreePcSearch<'a, T> {
+impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialOrd>
+    OcTreePcSearch<'a, T>
+{
     pub fn voxel_search<'b>(&'b self, pivot: &Vector4<T>) -> &'b [&'a Vector4<T>] {
         let key = self.inner.coords_to_key(pivot);
         self.inner.get(&key).map_or(&[], Deref::deref)

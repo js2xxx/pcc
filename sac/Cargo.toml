@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name = "pcc-octree"
+name = "pcc-sac"
 version = "0.1.0"
 
 [dependencies]
@@ -9,4 +9,5 @@ pcc-common = {path = "../common"}
 # External crates
 nalgebra = "0"
 num = "0"
-petgraph = "0"
+rand = "0"
+sample-consensus = "1"

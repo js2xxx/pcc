@@ -1,2 +1,2 @@
 [workspace]
-members = ["common", "kdtree", "octree"]
+members = ["common", "kdtree", "octree", "sac"]
