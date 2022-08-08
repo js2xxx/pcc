@@ -87,3 +87,41 @@ impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive> Estimator<Vector4<T>
         })
     }
 }
+
+pub struct ParallelPlaneEstimator<T: Scalar> {
+    pub direction: Vector4<T>,
+}
+
+impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive> Estimator<Vector4<T>>
+    for ParallelPlaneEstimator<T>
+{
+    type Model = Plane<T>;
+
+    type ModelIter = Option<Plane<T>>;
+
+    const MIN_SAMPLES: usize = 2;
+
+    fn estimate<I>(&self, mut data: I) -> Self::ModelIter
+    where
+        I: Iterator<Item = Vector4<T>> + Clone,
+    {
+        match (data.next(), data.next()) {
+            (Some(a), Some(b)) => {
+                let xa = (b - &a).xyz();
+                let xb = self.direction.xyz();
+                let normal = xa.cross(&xb);
+
+                Some(Plane {
+                    coords: a,
+                    normal: Vector4::from([
+                        normal.x.clone(),
+                        normal.y.clone(),
+                        normal.z.clone(),
+                        T::zero(),
+                    ]),
+                })
+            }
+            _ => None,
+        }
+    }
+}
