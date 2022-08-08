@@ -6,7 +6,7 @@ pub mod line;
 pub mod plane;
 pub mod sphere;
 
-pub use self::base::{Arrsac, Sac};
+pub use self::base::{Arrsac, PcSac};
 
 #[cfg(test)]
 mod tests {
