@@ -22,6 +22,34 @@ impl<T: Scalar + ComplexField<RealField = T>> Line<T> {
     }
 }
 
+impl<T: Scalar + ComplexField<RealField = T> + PartialOrd> Line<T> {
+    pub fn stick_distance_squared(&self, point: &Vector4<T>) -> T {
+        let v1 = (point - &self.coords).xyz();
+        let v2 = (point - &self.coords - &self.direction).xyz();
+
+        if v1.dot(&self.direction.xyz()) < T::zero() {
+            v1.norm_squared()
+        } else if v2.dot(&self.direction.xyz()) > T::zero() {
+            v2.norm_squared()
+        } else {
+            self.distance_squared(point)
+        }
+    }
+
+    pub fn stick_distance(&self, point: &Vector4<T>) -> T {
+        let v1 = (point - &self.coords).xyz();
+        let v2 = (point - &self.coords - &self.direction).xyz();
+
+        if v1.dot(&self.direction.xyz()) < T::zero() {
+            v1.norm()
+        } else if v2.dot(&self.direction.xyz()) > T::zero() {
+            v2.norm()
+        } else {
+            self.distance(point)
+        }
+    }
+}
+
 impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive> Model<Vector4<T>> for Line<T> {
     fn residual(&self, data: &Vector4<T>) -> f64 {
         self.distance(data).to_f64().unwrap()
@@ -29,6 +57,18 @@ impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive> Model<Vector4<T>> fo
 }
 
 pub struct LineEstimator;
+
+impl LineEstimator {
+    pub(crate) fn make<T: Scalar + ComplexField<RealField = T>>(
+        a: &Vector4<T>,
+        b: &Vector4<T>,
+    ) -> Line<T> {
+        Line {
+            coords: a.clone(),
+            direction: b - a,
+        }
+    }
+}
 
 impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive> Estimator<Vector4<T>>
     for LineEstimator
@@ -44,10 +84,7 @@ impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive> Estimator<Vector4<T>
         I: Iterator<Item = Vector4<T>> + Clone,
     {
         match (data.next(), data.next()) {
-            (Some(a), Some(b)) => Some(Line {
-                coords: a.clone(),
-                direction: b - a,
-            }),
+            (Some(a), Some(b)) => Some(Self::make(&a, &b)),
             _ => None,
         }
     }

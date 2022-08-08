@@ -28,31 +28,21 @@ impl<T: Scalar> Circle<T> {
 }
 
 impl<T: Scalar + ComplexField<RealField = T>> Circle<T> {
-    fn target_radius(&self, point: &Vector4<T>) -> Vector3<T> {
+    pub(crate) fn target_radius(&self, point: &Vector4<T>) -> Vector4<T> {
         let delta = (point - &self.center).xyz();
         let normal = self.normal.xyz();
 
         // TODO: Check if `normal` is colinear with `delta`.
         let plane = delta.cross(&normal);
         let direction = normal.cross(&plane);
-        direction.scale(self.radius.clone() / direction.norm())
+        let target = direction.scale(self.radius.clone() / direction.norm());
+        matrix![target.x.clone(); target.y.clone(); target.z.clone(); T::zero()]
     }
 
     pub fn circumference_distance(&self, point: &Vector4<T>) -> T {
         let delta = (point - &self.center).xyz();
         let target = self.target_radius(point);
-        (target - delta).norm()
-    }
-
-    pub fn cylinder_distance(&self, point: &Vector4<T>) -> T {
-        let delta = point - &self.center;
-
-        let target = self.target_radius(point);
-        let plane = Plane {
-            coords: matrix![target.x.clone(); target.y.clone(); target.z.clone(); T::one()],
-            normal: matrix![target.x.clone(); target.y.clone(); target.z.clone(); T::zero()],
-        };
-        plane.distance(&delta)
+        (target.xyz() - delta).norm()
     }
 }
 

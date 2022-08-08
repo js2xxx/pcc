@@ -4,51 +4,45 @@ use sample_consensus::{Estimator, Model};
 
 use crate::{
     circle::{Circle, CircleEstimator},
-    line::Line,
+    line::{Line, LineEstimator},
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Cylinder<T: Scalar> {
-    pub circle: Circle<T>,
-    pub height: T,
+pub struct Cone<T: Scalar> {
+    circle: Circle<T>,
+    height: T,
 }
 
-impl<T: Scalar + ComplexField<RealField = T>> Cylinder<T> {
-    pub fn top_circle(&self) -> Circle<T> {
+impl<T: Scalar + ComplexField<RealField = T>> Cone<T> {
+    pub fn top_point(&self) -> Vector4<T> {
         let diff = self
             .circle
             .normal
             .scale(self.height.clone() / self.circle.normal.norm());
-        Circle {
-            center: &self.circle.center + diff,
-            normal: self.circle.normal.clone(),
-            radius: self.circle.radius.clone(),
-        }
+
+        &self.circle.center + diff
     }
 
     pub fn generatrix(&self, point: &Vector4<T>) -> Line<T> {
-        Line {
-            coords: self.circle.target_radius(point),
-            direction: self
-                .circle
-                .normal
-                .scale(self.height.clone() / self.circle.normal.norm()),
-        }
+        let a = self.circle.target_radius(point) + &self.circle.center;
+        let b = self.top_point();
+        LineEstimator::make(&a, &b)
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + PartialOrd> Cylinder<T> {
+impl<T: Scalar + ComplexField<RealField = T> + PartialOrd> Cone<T> {
     pub fn distance(&self, point: &Vector4<T>) -> T {
-        let top_circle = self.top_circle();
+        let generatrix = self.generatrix(point);
+        let top_point = self.top_point();
 
         let mut ret = self.circle.distance(point);
 
-        let d1 = top_circle.distance(point);
+        let d1 = (point - top_point).xyz().norm();
         if ret > d1 {
             ret = d1
         }
 
-        let d2 = self.generatrix(point).stick_distance(point);
+        let d2 = generatrix.stick_distance(point);
         if ret > d2 {
             ret = d2
         }
@@ -57,41 +51,44 @@ impl<T: Scalar + ComplexField<RealField = T> + PartialOrd> Cylinder<T> {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive + PartialOrd> Model<Vector4<T>>
-    for Cylinder<T>
+impl<T: Scalar + ComplexField<RealField = T> + PartialOrd + ToPrimitive> Model<Vector4<T>>
+    for Cone<T>
 {
     fn residual(&self, data: &Vector4<T>) -> f64 {
         self.distance(data).to_f64().unwrap()
     }
 }
 
-pub struct CylinderEstimator;
+pub struct ConeEstimator;
 
-impl CylinderEstimator {
+impl ConeEstimator {
     fn try_make<T: Scalar + ComplexField<RealField = T> + PartialOrd>(
         ca: &Vector4<T>,
         cb: &Vector4<T>,
         cc: &Vector4<T>,
-        top: &Vector4<T>,
-    ) -> Option<Cylinder<T>> {
+        another: &Vector4<T>,
+    ) -> Option<Cone<T>> {
         let circle = CircleEstimator::make(ca, cb, cc);
+        let target = circle.target_radius(another);
+        let dir_gx = another - &target - &circle.center;
 
-        let plane = circle.plane();
-        let axis = circle.axis();
-
-        (axis.distance(top) <= circle.radius).then(|| Cylinder {
-            circle,
-            height: plane.distance(top),
+        let dot = dir_gx.xyz().dot(&target.xyz());
+        (dot > T::zero()).then(|| {
+            let cos2 =
+                dot.clone() * dot / dir_gx.xyz().norm_squared() / target.xyz().norm_squared();
+            let tan = (T::one() / cos2 - T::one()).sqrt();
+            let height = tan * circle.radius.clone();
+            Cone { circle, height }
         })
     }
 }
 
 impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive + PartialOrd> Estimator<Vector4<T>>
-    for CylinderEstimator
+    for ConeEstimator
 {
-    type Model = Cylinder<T>;
+    type Model = Cone<T>;
 
-    type ModelIter = Vec<Cylinder<T>>;
+    type ModelIter = Vec<Cone<T>>;
 
     const MIN_SAMPLES: usize = 4;
 
