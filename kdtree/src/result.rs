@@ -71,6 +71,10 @@ impl<K: PartialOrd, V: PartialOrd> KnnResultSet<K, V> {
         self.data.is_empty()
     }
 
+    pub fn pop(&mut self) -> Option<(K, V)> {
+        self.data.pop().map(|node| (node.key, node.value))
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
         self.data.iter().map(|node| (&node.key, &node.value))
     }
@@ -135,6 +139,10 @@ impl<K: PartialOrd, V: PartialOrd> RadiusResultSet<K, V> {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
+    }
+
+    pub fn pop(&mut self) -> Option<(K, V)> {
+        self.data.pop().map(|node| (node.key, node.value))
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
