@@ -45,7 +45,7 @@ impl<'a, T: Scalar + Copy + ComplexField<RealField = T> + PartialOrd> KdTree<'a,
     pub fn search(
         &self,
         pivot: &Vector4<T>,
-        result: &mut impl ResultSet<Key = T, Value = &'a Vector4<T>>,
+        result: &mut impl ResultSet<Key = T, Value = usize>,
     ) {
         if let Some(root) = self.root {
             unsafe { root.as_ref() }.search(pivot, result)
@@ -55,7 +55,7 @@ impl<'a, T: Scalar + Copy + ComplexField<RealField = T> + PartialOrd> KdTree<'a,
     pub fn search_exact(
         &self,
         pivot: &Vector4<T>,
-        result: &mut impl ResultSet<Key = T, Value = &'a Vector4<T>>,
+        result: &mut impl ResultSet<Key = T, Value = usize>,
     ) {
         if let Some(root) = self.root {
             unsafe { root.as_ref() }.search_exact(pivot, result)
@@ -96,7 +96,7 @@ impl<'a, T: Scalar + ComplexField<RealField = T> + Copy + PartialOrd>
         }
     }
 
-    fn search(&self, pivot: &Vector4<T>, ty: SearchType<T>, result: &mut Vec<&'a Vector4<T>>) {
+    fn search(&self, pivot: &Vector4<T>, ty: SearchType<T>, result: &mut Vec<usize>) {
         result.clear();
         match ty {
             SearchType::Knn(num) => {
@@ -116,7 +116,7 @@ impl<'a, T: Scalar + ComplexField<RealField = T> + Copy + PartialOrd>
         &self,
         pivot: &Vector4<T>,
         ty: SearchType<T>,
-        result: &mut Vec<&'a Vector4<T>>,
+        result: &mut Vec<usize>,
     ) {
         result.clear();
         match ty {

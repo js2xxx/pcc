@@ -238,7 +238,7 @@ impl<'a, T: Scalar + Copy + ComplexField<RealField = T> + PartialOrd> Node<'a, T
     fn search_one(
         &self,
         pivot: &Vector4<T>,
-        result: &mut impl ResultSet<Key = T, Value = &'a Vector4<T>>,
+        result: &mut impl ResultSet<Key = T, Value = usize>,
         other_branches: &mut Vec<NonNull<Node<'a, T>>>,
         checker: &mut BitVec,
     ) {
@@ -248,7 +248,7 @@ impl<'a, T: Scalar + Copy + ComplexField<RealField = T> + PartialOrd> Node<'a, T
                 Node::Leaf { index, coord } => {
                     if !check_and_set(index, checker) {
                         let distance = (coord.xyz() - pivot.xyz()).norm();
-                        result.push(distance, coord);
+                        result.push(distance, index);
                     }
                     break;
                 }
@@ -279,12 +279,12 @@ impl<'a, T: Scalar + Copy + ComplexField<RealField = T> + PartialOrd> Node<'a, T
     pub fn search_exact(
         &self,
         pivot: &Vector4<T>,
-        result: &mut impl ResultSet<Key = T, Value = &'a Vector4<T>>,
+        result: &mut impl ResultSet<Key = T, Value = usize>,
     ) {
         match *self {
-            Node::Leaf { coord, .. } => {
+            Node::Leaf { coord, index } => {
                 let distance = (coord.xyz() - pivot.xyz()).norm();
-                result.push(distance, coord);
+                result.push(distance, index);
             }
             Node::Branch {
                 children: [left, right],
@@ -312,7 +312,7 @@ impl<'a, T: Scalar + Copy + ComplexField<RealField = T> + PartialOrd> Node<'a, T
     pub fn search(
         &self,
         pivot: &Vector4<T>,
-        result: &mut impl ResultSet<Key = T, Value = &'a Vector4<T>>,
+        result: &mut impl ResultSet<Key = T, Value = usize>,
     ) {
         let mut other_branches = Vec::new();
         let mut checker = BitVec::new();

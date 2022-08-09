@@ -18,13 +18,13 @@ pub trait Searcher<'a, T: Scalar> {
         extra: Self::FromExtra,
     ) -> Self;
 
-    fn search(&self, pivot: &Vector4<T>, ty: SearchType<T>, result: &mut Vec<&'a Vector4<T>>);
+    fn search(&self, pivot: &Vector4<T>, ty: SearchType<T>, result: &mut Vec<usize>);
 
     fn search_exact(
         &self,
         pivot: &Vector4<T>,
         ty: SearchType<T>,
-        result: &mut Vec<&'a Vector4<T>>,
+        result: &mut Vec<usize>,
     ) {
         self.search(pivot, ty, result)
     }

@@ -10,7 +10,7 @@ use crate::{
 };
 
 pub struct OcTreePcSearch<'a, T: Scalar> {
-    inner: OcTreePc<Vec<&'a Vector4<T>>, T>,
+    inner: OcTreePc<Vec<(usize, &'a Vector4<T>)>, T>,
 }
 
 impl<'a, T: Scalar + num::Zero> Default for OcTreePcSearch<'a, T> {
@@ -32,7 +32,7 @@ impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialO
 impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialOrd>
     OcTreePcSearch<'a, T>
 {
-    pub fn voxel_search<'b>(&'b self, pivot: &Vector4<T>) -> &'b [&'a Vector4<T>] {
+    pub fn voxel_search<'b>(&'b self, pivot: &Vector4<T>) -> &'b [(usize, &'a Vector4<T>)] {
         let key = self.inner.coords_to_key(pivot);
         self.inner.get(&key).map_or(&[], Deref::deref)
     }
@@ -40,14 +40,14 @@ impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialO
 
 #[derive(Debug, Copy, Clone)]
 struct NodeKey<'b, 'a, T: Scalar> {
-    node: &'b Node<(), Vec<&'a Vector4<T>>>,
+    node: &'b Node<(), Vec<(usize, &'a Vector4<T>)>>,
     key: [usize; 3],
 }
 
 impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialOrd>
     OcTreePcSearch<'a, T>
 {
-    pub fn knn_search(&self, pivot: &Vector4<T>, num: usize, result_set: &mut Vec<&'a Vector4<T>>) {
+    pub fn knn_search(&self, pivot: &Vector4<T>, num: usize, result_set: &mut Vec<usize>) {
         let mut rs = Vec::new();
         if let Some(node) = self.inner.root() {
             self.knn_search_recursive(&NodeKey { node, key: [0; 3] }, pivot, num, 1, None, &mut rs);
@@ -63,7 +63,7 @@ impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialO
         num: usize,
         depth: usize,
         mut min_distance: Option<T>,
-        result_set: &mut Vec<(&'a Vector4<T>, T)>,
+        result_set: &mut Vec<(usize, T)>,
     ) -> Option<T> {
         let half_diagonal = self.half_diagonal(depth);
 
@@ -113,10 +113,10 @@ impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialO
                     )
                 }
                 Node::Leaf { content } => {
-                    for &coords in content {
+                    for &(index, &coords) in content {
                         let distance = (coords - pivot).norm();
                         if min_distance.map_or(true, |d| distance < d) {
-                            result_set.push((coords, distance));
+                            result_set.push((index, distance));
                         }
                     }
 
@@ -140,12 +140,7 @@ impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialO
 impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialOrd>
     OcTreePcSearch<'a, T>
 {
-    pub fn radius_search(
-        &self,
-        pivot: &Vector4<T>,
-        radius: T,
-        result_set: &mut Vec<&'a Vector4<T>>,
-    ) {
+    pub fn radius_search(&self, pivot: &Vector4<T>, radius: T, result_set: &mut Vec<usize>) {
         result_set.clear();
         if let Some(node) = self.inner.root() {
             self.radius_search_recursive(
@@ -164,7 +159,7 @@ impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialO
         pivot: &Vector4<T>,
         radius: T,
         depth: usize,
-        result_set: &mut Vec<&'a Vector4<T>>,
+        result_set: &mut Vec<usize>,
     ) {
         let half_diagonal = self.half_diagonal(depth);
 
@@ -189,10 +184,10 @@ impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialO
                     self.radius_search_recursive(&child, pivot, radius, depth + 1, result_set)
                 }
                 Node::Leaf { content } => {
-                    for &coords in content {
+                    for &(index, &coords) in content {
                         let distance = (coords - pivot).norm();
                         if distance <= radius {
-                            result_set.push(coords)
+                            result_set.push(index)
                         }
                     }
                 }
@@ -211,16 +206,16 @@ impl<'a, T: Scalar + Float + ComplexField<RealField = T>> pcc_common::search::Se
     ) -> Self {
         OcTreePcSearch {
             inner: OcTreePc::from_point_cloud(point_cloud, options, |tree, mul, add| {
-                for point in point_cloud.iter() {
+                for (index, point) in point_cloud.iter().enumerate() {
                     let key = crate::point_cloud::coords_to_key(&point.coords, mul, add);
                     let vec = tree.get_or_insert_with(&key, Vec::new);
-                    vec.push(&point.coords);
+                    vec.push((index, &point.coords));
                 }
             }),
         }
     }
 
-    fn search(&self, pivot: &Vector4<T>, ty: SearchType<T>, result: &mut Vec<&'a Vector4<T>>) {
+    fn search(&self, pivot: &Vector4<T>, ty: SearchType<T>, result: &mut Vec<usize>) {
         match ty {
             SearchType::Knn(num) => self.knn_search(pivot, num, result),
             SearchType::Radius(radius) => self.radius_search(pivot, radius, result),
