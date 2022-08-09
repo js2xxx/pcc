@@ -5,10 +5,7 @@ use std::{
     ops::{Deref, Index, IndexMut},
 };
 
-use nalgebra::{
-    ClosedAdd, ClosedMul, ClosedSub, Matrix3, SVector, Scalar, SimdComplexField, SimdValue, Vector4,
-};
-use num::Float;
+use nalgebra::{ClosedSub, ComplexField, Matrix3, SVector, Scalar, Vector4};
 
 use self::transforms::Transform;
 use crate::points::Point3Infoed;
@@ -109,7 +106,7 @@ impl<T> PointCloud<T> {
     }
 }
 
-impl<T: Scalar + Float, I> PointCloud<Point3Infoed<T, I>> {
+impl<T: Scalar + ComplexField<RealField = T>, I> PointCloud<Point3Infoed<T, I>> {
     pub fn try_from_vec(
         storage: Vec<Point3Infoed<T, I>>,
         width: usize,
@@ -127,7 +124,7 @@ impl<T: Scalar + Float, I> PointCloud<Point3Infoed<T, I>> {
     }
 }
 
-impl<T: Scalar + Float, I: Debug> PointCloud<Point3Infoed<T, I>> {
+impl<T: Scalar + ComplexField<RealField = T>, I: Debug> PointCloud<Point3Infoed<T, I>> {
     pub fn from_vec(storage: Vec<Point3Infoed<T, I>>, width: usize) -> Self {
         PointCloud::try_from_vec(storage, width)
             .expect("The length of the vector must be divisible by width")
@@ -140,22 +137,20 @@ impl<T: Scalar, I> Default for PointCloud<Point3Infoed<T, I>> {
     }
 }
 
-impl<T: Scalar + Float + ClosedAdd + Default + SimdComplexField<SimdRealField = T>, I>
-    PointCloud<Point3Infoed<T, I>>
-{
+impl<T: Scalar + ComplexField<RealField = T> + Default, I> PointCloud<Point3Infoed<T, I>> {
     pub fn centroid(&self) -> (Option<Vector4<T>>, usize) {
         let (acc, num) = if self.bounded {
             self.storage
                 .iter()
                 .fold((Vector4::default(), 0), |(acc, num), v| {
-                    (acc + v.coords, num + 1)
+                    (acc + &v.coords, num + 1)
                 })
         } else {
             self.storage
                 .iter()
                 .fold((Vector4::default(), 0), |(acc, num), v| {
                     if v.is_finite() {
-                        (acc + v.coords, num + 1)
+                        (acc + &v.coords, num + 1)
                     } else {
                         (acc, num)
                     }
@@ -163,7 +158,7 @@ impl<T: Scalar + Float + ClosedAdd + Default + SimdComplexField<SimdRealField = 
         };
 
         if num > 0 {
-            let mut ret = acc.unscale(T::from(num).unwrap());
+            let mut ret = acc.unscale(T::from_usize(num).unwrap());
             ret.w = T::one();
             (Some(ret), num)
         } else {
@@ -172,24 +167,20 @@ impl<T: Scalar + Float + ClosedAdd + Default + SimdComplexField<SimdRealField = 
     }
 }
 
-impl<
-        T: Scalar + Float + ClosedAdd + ClosedSub + Default + SimdComplexField<SimdRealField = T>,
-        I,
-    > PointCloud<Point3Infoed<T, I>>
-{
+impl<T: Scalar + ComplexField<RealField = T> + Default, I> PointCloud<Point3Infoed<T, I>> {
     /// Note: The result of this function is not normalized (descaled by the
     /// calculated point count); if wanted, use `cov_matrix_norm` instead.
     pub fn cov_matrix(&self, centroid: &Vector4<T>) -> (Option<Matrix3<T>>, usize) {
         let accum = |mut acc: Matrix3<T>, v: &Vector4<T>| {
             let d = v - centroid;
 
-            acc.m22 += d.y * d.y;
-            acc.m23 += d.y * d.z;
-            acc.m33 += d.z * d.z;
-            let d = d.scale(d.x);
-            acc.m11 += d.x;
-            acc.m12 += d.y;
-            acc.m13 += d.z;
+            acc.m22 += d.y.clone() * d.y.clone();
+            acc.m23 += d.y.clone() * d.z.clone();
+            acc.m33 += d.z.clone() * d.z.clone();
+            let d = d.scale(d.x.clone());
+            acc.m11 += d.x.clone();
+            acc.m12 += d.y.clone();
+            acc.m13 += d.z.clone();
 
             acc
         };
@@ -214,9 +205,9 @@ impl<
 
         if num > 0 {
             let mut ret = acc;
-            ret.m21 = ret.m12;
-            ret.m31 = ret.m13;
-            ret.m32 = ret.m23;
+            ret.m21 = ret.m12.clone();
+            ret.m31 = ret.m13.clone();
+            ret.m32 = ret.m23.clone();
             (Some(ret), num)
         } else {
             (None, num)
@@ -225,36 +216,34 @@ impl<
 
     pub fn cov_matrix_norm(&self, centroid: &Vector4<T>) -> (Option<Matrix3<T>>, usize) {
         match self.cov_matrix(centroid) {
-            (Some(ret), num) => (Some(ret.unscale(T::from(num).unwrap())), num),
+            (Some(ret), num) => (Some(ret.unscale(T::from_usize(num).unwrap())), num),
             (None, num) => (None, num),
         }
     }
 }
 
-impl<
-        T: Scalar + Float + ClosedAdd + ClosedSub + Default + SimdComplexField<SimdRealField = T>,
-        I,
-    > PointCloud<Point3Infoed<T, I>>
+impl<T: Scalar + Default + ComplexField<RealField = T>, I>
+    PointCloud<Point3Infoed<T, I>>
 {
     #[allow(clippy::type_complexity)]
     pub fn centroid_and_cov_matrix(&self) -> (Option<(Vector4<T>, Matrix3<T>)>, usize) {
         let c = match self.storage.iter().find(|v| v.is_finite()) {
-            Some(v) => v.coords,
+            Some(v) => v.coords.clone(),
             None => return (None, 0),
         };
 
         let accum = |mut acc: SVector<T, 9>, v: &Vector4<T>| {
-            let d = v - c;
+            let d = v - &c;
 
-            acc[0] += d.x * d.x;
-            acc[1] += d.x * d.y;
-            acc[2] += d.x * d.z;
-            acc[3] += d.y * d.y;
-            acc[4] += d.y * d.z;
-            acc[5] += d.z * d.z;
-            acc[6] += d.x;
-            acc[7] += d.y;
-            acc[8] += d.z;
+            acc[0] += d.x.clone() * d.x.clone();
+            acc[1] += d.x.clone() * d.y.clone();
+            acc[2] += d.x.clone() * d.z.clone();
+            acc[3] += d.y.clone() * d.y.clone();
+            acc[4] += d.y.clone() * d.z.clone();
+            acc[5] += d.z.clone() * d.z.clone();
+            acc[6] += d.x.clone();
+            acc[7] += d.y.clone();
+            acc[8] += d.z.clone();
 
             acc
         };
@@ -278,17 +267,34 @@ impl<
         };
 
         if num > 0 {
-            let a = acc.unscale(T::from(num).unwrap());
-            let centroid = Vector4::from([a[6] + c.x, a[7] + c.y, a[8] + c.z, T::one()]);
+            let a = acc.unscale(T::from_usize(num).unwrap());
+            let centroid = Vector4::from([
+                a[6].clone() + c.x.clone(),
+                a[7].clone() + c.y.clone(),
+                a[8].clone() + c.z.clone(),
+                T::one(),
+            ]);
 
             let mut cov_matrix = Matrix3::from([
-                [a[0] - a[6] * a[6], a[1] - a[6] * a[7], a[2] - a[6] * a[8]],
-                [T::zero(), a[3] - a[7] * a[7], a[4] - a[7] * a[8]],
-                [T::zero(), T::zero(), a[5] - a[8] * a[8]],
+                [
+                    a[0].clone() - a[6].clone() * a[6].clone(),
+                    a[1].clone() - a[6].clone() * a[7].clone(),
+                    a[2].clone() - a[6].clone() * a[8].clone(),
+                ],
+                [
+                    T::zero(),
+                    a[3].clone() - a[7].clone() * a[7].clone(),
+                    a[4].clone() - a[7].clone() * a[8].clone(),
+                ],
+                [
+                    T::zero(),
+                    T::zero(),
+                    a[5].clone() - a[8].clone() * a[8].clone(),
+                ],
             ]);
-            cov_matrix.m21 = cov_matrix.m12;
-            cov_matrix.m31 = cov_matrix.m13;
-            cov_matrix.m32 = cov_matrix.m23;
+            cov_matrix.m21 = cov_matrix.m12.clone();
+            cov_matrix.m31 = cov_matrix.m13.clone();
+            cov_matrix.m32 = cov_matrix.m23.clone();
 
             (Some((centroid, cov_matrix)), num)
         } else {
@@ -297,11 +303,12 @@ impl<
     }
 }
 
-impl<T: Scalar + Float + Copy + ClosedAdd + ClosedMul + Default, I: Clone + Default>
+impl<T: Scalar + ComplexField<RealField = T> + Default, I: Clone + Default>
     PointCloud<Point3Infoed<T, I>>
 {
     pub fn transform<Z: Transform<T>>(&self, z: &Z, out: &mut Self) {
-        out.storage.resize(self.storage.len(), Default::default());
+        out.storage
+            .resize_with(self.storage.len(), Default::default);
 
         out.width = self.width;
         out.bounded = self.bounded;
@@ -321,19 +328,19 @@ impl<T: Scalar + Float + Copy + ClosedAdd + ClosedMul + Default, I: Clone + Defa
     }
 }
 
-impl<T: Scalar + Float + ClosedSub, I: Clone> PointCloud<Point3Infoed<T, I>> {
+impl<T: Scalar + ClosedSub, I: Clone> PointCloud<Point3Infoed<T, I>> {
     pub fn demean(&self, centroid: &Vector4<T>, out: &mut Self) {
         out.clone_from(self);
 
         for point in &mut out.storage {
-            point.coords.x -= centroid.x;
-            point.coords.y -= centroid.y;
-            point.coords.z -= centroid.z;
+            point.coords.x -= centroid.x.clone();
+            point.coords.y -= centroid.y.clone();
+            point.coords.z -= centroid.z.clone();
         }
     }
 }
 
-impl<T: Scalar + Float + PartialOrd, I> PointCloud<Point3Infoed<T, I>> {
+impl<T: Scalar + ComplexField<RealField = T> + PartialOrd, I> PointCloud<Point3Infoed<T, I>> {
     pub fn box_select(&self, min: &Vector4<T>, max: &Vector4<T>) -> Vec<usize> {
         let mut ret = Vec::with_capacity(self.storage.len());
 
@@ -359,22 +366,20 @@ impl<T: Scalar + Float + PartialOrd, I> PointCloud<Point3Infoed<T, I>> {
     }
 }
 
-impl<T: Scalar + Float + SimdValue<Element = T, SimdBool = bool>, I>
-    PointCloud<Point3Infoed<T, I>>
-{
+impl<T: Scalar + ComplexField<RealField = T> + PartialOrd, I> PointCloud<Point3Infoed<T, I>> {
     /// Note: Points that are not finite (infinite, NaN, etc) are not considered
     /// into calculations.
     pub fn finite_bound(&self) -> Option<(Vector4<T>, Vector4<T>)> {
         if self.bounded {
             self.storage.iter().fold(None, |acc, v| match acc {
-                None => Some((v.coords, v.coords)),
+                None => Some((v.coords.clone(), v.coords.clone())),
                 Some((min, max)) => Some((min.inf(&v.coords), max.sup(&v.coords))),
             })
         } else {
             self.storage.iter().fold(None, |acc, v| {
                 if v.is_finite() {
                     match acc {
-                        None => Some((v.coords, v.coords)),
+                        None => Some((v.coords.clone(), v.coords.clone())),
                         Some((min, max)) => Some((min.inf(&v.coords), max.sup(&v.coords))),
                     }
                 } else {
@@ -385,27 +390,25 @@ impl<T: Scalar + Float + SimdValue<Element = T, SimdBool = bool>, I>
     }
 }
 
-impl<T: Scalar + Float + PartialOrd + ClosedSub + SimdComplexField<SimdRealField = T>, I>
-    PointCloud<Point3Infoed<T, I>>
-{
+impl<T: Scalar + ComplexField<RealField = T> + PartialOrd, I> PointCloud<Point3Infoed<T, I>> {
     pub fn max_distance(&self, pivot: &Vector4<T>) -> Option<(T, Vector4<T>)> {
         let pivot = pivot.xyz();
 
         if self.bounded {
             self.storage.iter().fold(None, |acc, v| {
-                let distance = (v.coords.xyz() - pivot).norm();
+                let distance = (v.coords.xyz() - &pivot).norm();
                 match acc {
-                    Some((d, _)) if distance <= d => acc,
-                    _ => Some((distance, v.coords)),
+                    Some((d, c)) if distance <= d => Some((d, c)),
+                    _ => Some((distance, v.coords.clone())),
                 }
             })
         } else {
             self.storage.iter().fold(None, |acc, v| {
                 if v.is_finite() {
-                    let distance = (v.coords.xyz() - pivot).norm();
+                    let distance = (v.coords.xyz() - &pivot).norm();
                     match acc {
-                        Some((d, _)) if distance <= d => acc,
-                        _ => Some((distance, v.coords)),
+                        Some((d, c)) if distance <= d => Some((d, c)),
+                        _ => Some((distance, v.coords.clone())),
                     }
                 } else {
                     acc

@@ -1,6 +1,5 @@
 pub use nalgebra::Point3;
-use nalgebra::{Scalar, Vector4};
-use num::Float;
+use nalgebra::{Scalar, Vector4, ComplexField};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(align(16))]
@@ -24,7 +23,7 @@ impl<T: Scalar + Default, I: Default> Default for Point3Infoed<T, I> {
     }
 }
 
-impl<T: Scalar + Float, I> Point3Infoed<T, I> {
+impl<T: Scalar + ComplexField<RealField = T>, I> Point3Infoed<T, I> {
     pub fn is_finite(&self) -> bool {
         self.coords.x.is_finite() && self.coords.y.is_finite() && self.coords.z.is_finite()
     }
