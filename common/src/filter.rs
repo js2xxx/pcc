@@ -1,3 +1,7 @@
+use nalgebra::ComplexField;
+
+use crate::{point_cloud::PointCloud, points::Point3Infoed};
+
 /// A filter that keeps some parts of input, for example, some elements of an
 /// array, and transfers them to the output.
 pub trait Filter<T: ?Sized> {
@@ -19,12 +23,10 @@ pub trait ApproxFilter<T> {
     fn filter(&mut self, input: &T) -> T;
 }
 
-impl<T: Clone, F: Filter<[T]>> ApproxFilter<Vec<T>> for F {
-    fn filter(&mut self, input: &Vec<T>) -> Vec<T> {
-        let indices = self.filter_indices(input);
-        indices
-            .into_iter()
-            .map(|index| input[index].clone())
-            .collect()
+impl<T: ComplexField<RealField = T>, I: std::fmt::Debug + Clone>
+    ApproxFilter<PointCloud<Point3Infoed<T, I>>> for [usize]
+{
+    fn filter(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> PointCloud<Point3Infoed<T, I>> {
+        PointCloud::from_vec(self.iter().map(|&index| input[index].clone()).collect(), 1)
     }
 }
