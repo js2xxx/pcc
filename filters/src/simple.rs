@@ -1,70 +1,34 @@
-use pcc_common::{filter::Filter, point_cloud::PointCloud};
+use pcc_common::filter::Filter;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Simple<'a, T> {
-    indices: Vec<usize>,
-    point_cloud: &'a PointCloud<T>,
+    constraint: Box<dyn FnMut(&T) -> bool + 'a>,
 }
 
 impl<'a, T> Simple<'a, T> {
-    pub fn new(point_cloud: &'a PointCloud<T>) -> Self {
+    pub fn new(constraint: impl Fn(&T) -> bool + 'a) -> Self {
         Simple {
-            indices: (0..point_cloud.len()).collect(),
-            point_cloud,
+            constraint: Box::new(constraint),
         }
     }
 }
 
-impl<'a, T> Filter<'a, T> for Simple<'a, T> {
-    fn append_constraint<C>(&mut self, mut constraint: C)
-    where
-        C: FnMut(&'a T) -> bool,
-    {
-        self.indices
-            .retain(|&index| constraint(&(*self.point_cloud)[index]))
+impl<'a, T: Clone> Filter<[T]> for Simple<'a, T> {
+    fn filter_indices(&mut self, input: &[T]) -> Vec<usize> {
+        let mut indices = (0..input.len()).collect::<Vec<_>>();
+        indices.retain(|&index| (self.constraint)(&input[index]));
+        indices
     }
 
-    fn result(&self) -> &[usize] {
-        &self.indices
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SimpleWithRemoved<'a, T> {
-    indices: Vec<usize>,
-    removed: Vec<usize>,
-    point_cloud: &'a PointCloud<T>,
-}
-
-impl<'a, T> SimpleWithRemoved<'a, T> {
-    pub fn new(point_cloud: &'a PointCloud<T>) -> Self {
-        SimpleWithRemoved {
-            indices: (0..point_cloud.len()).collect(),
-            removed: Vec::with_capacity(point_cloud.len()),
-            point_cloud,
-        }
-    }
-}
-
-impl<'a, T> Filter<'a, T> for SimpleWithRemoved<'a, T> {
-    fn append_constraint<C>(&mut self, mut constraint: C)
-    where
-        C: FnMut(&'a T) -> bool,
-    {
-        self.indices.retain(|&index| {
-            let ret = constraint(&(*self.point_cloud)[index]);
-            if ret {
-                self.removed.push(index)
+    fn filter_all_indices(&mut self, input: &[T]) -> (Vec<usize>, Vec<usize>) {
+        let mut indices = (0..input.len()).collect::<Vec<_>>();
+        let mut removed = Vec::with_capacity(indices.len());
+        indices.retain(|&index| {
+            let ret = (self.constraint)(&input[index]);
+            if !ret {
+                removed.push(index)
             }
             ret
-        })
-    }
-
-    fn result(&self) -> &[usize] {
-        &self.indices
-    }
-
-    fn removed(&self) -> &[usize] {
-        &self.removed
+        });
+        (indices, removed)
     }
 }

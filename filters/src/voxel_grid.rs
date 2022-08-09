@@ -2,7 +2,7 @@ use nalgebra::{ComplexField, Scalar, Vector4};
 use num::ToPrimitive;
 use pcc_common::{
     point_cloud::PointCloud,
-    points::{Centroid, Point3Infoed},
+    points::{Centroid, Point3Infoed}, filter::ApproxFilter,
 };
 
 pub struct VoxelGrid<T: Scalar> {
@@ -15,15 +15,15 @@ impl<T: Scalar> VoxelGrid<T> {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + PartialOrd + ToPrimitive + Centroid + Default>
-    VoxelGrid<T>
-{
-    pub fn filter<I: std::fmt::Debug + Default + Centroid>(
-        &self,
-        point_cloud: &PointCloud<Point3Infoed<T, I>>,
-    ) -> PointCloud<Point3Infoed<T, I>>
+impl<T: Scalar + ComplexField<RealField = T> + PartialOrd + ToPrimitive + Centroid + Default, I: std::fmt::Debug + Default + Centroid>
+    ApproxFilter<PointCloud<Point3Infoed<T, I>>> for VoxelGrid<T>
     where
         <I as Centroid>::Accumulator: Default,
+{
+    fn filter(
+        &mut self,
+        point_cloud: &PointCloud<Point3Infoed<T, I>>,
+    ) -> PointCloud<Point3Infoed<T, I>>
     {
         let (min, _) = match point_cloud.finite_bound() {
             Some(bound) => bound,
