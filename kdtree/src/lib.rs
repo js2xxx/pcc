@@ -25,7 +25,7 @@ impl<'a, T: Scalar> Default for KdTree<'a, T> {
     }
 }
 
-impl<'a, T: Scalar + Copy + RealField> KdTree<'a, T> {
+impl<'a, T: Copy + RealField> KdTree<'a, T> {
     pub fn insert(&mut self, index: usize, pivot: &'a Vector4<T>) {
         match self.root {
             Some(mut root) => unsafe { root.as_mut() }.insert(index, pivot),
@@ -41,7 +41,7 @@ impl<'a, T: Scalar + Copy + RealField> KdTree<'a, T> {
     }
 }
 
-impl<'a, T: Scalar + Copy + RealField> KdTree<'a, T> {
+impl<'a, T: Copy + RealField> KdTree<'a, T> {
     pub fn search(&self, pivot: &Vector4<T>, result: &mut impl ResultSet<Key = T, Value = usize>) {
         if let Some(root) = self.root {
             unsafe { root.as_ref() }.search(pivot, result)

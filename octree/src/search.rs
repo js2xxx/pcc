@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use nalgebra::{RealField, Scalar, Vector4};
-use num::{Float, ToPrimitive};
+use num::ToPrimitive;
 use pcc_common::{point_cloud::PointCloud, points::Point3Infoed, search::SearchType};
 
 use crate::{
@@ -188,7 +188,7 @@ impl<'a, T: RealField + ToPrimitive + Copy> OcTreePcSearch<'a, T> {
     }
 }
 
-impl<'a, T: Float + RealField> OcTreePcSearch<'a, T> {
+impl<'a, T: RealField + ToPrimitive> OcTreePcSearch<'a, T> {
     pub fn new<I>(
         point_cloud: &'a PointCloud<Point3Infoed<T, I>>,
         options: CreateOptions<T>,
@@ -196,7 +196,7 @@ impl<'a, T: Float + RealField> OcTreePcSearch<'a, T> {
         OcTreePcSearch {
             inner: OcTreePc::new(point_cloud, options, |tree, mul, add| {
                 for (index, point) in point_cloud.iter().enumerate() {
-                    let key = crate::point_cloud::coords_to_key(&point.coords, mul, add);
+                    let key = crate::point_cloud::coords_to_key(&point.coords, mul.clone(), add);
                     let vec = tree.get_or_insert_with(&key, Vec::new);
                     vec.push((index, &point.coords));
                 }
@@ -205,7 +205,9 @@ impl<'a, T: Float + RealField> OcTreePcSearch<'a, T> {
     }
 }
 
-impl<'a, T: Float + RealField> pcc_common::search::Searcher<'a, T> for OcTreePcSearch<'a, T> {
+impl<'a, T: RealField + ToPrimitive + Copy> pcc_common::search::Searcher<'a, T>
+    for OcTreePcSearch<'a, T>
+{
     fn search(&self, pivot: &Vector4<T>, ty: SearchType<T>, result: &mut Vec<usize>) {
         match ty {
             SearchType::Knn(num) => self.knn_search(pivot, num, result),

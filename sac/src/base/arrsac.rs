@@ -442,7 +442,7 @@ where
     }
 }
 
-impl<E, R, Data, T: Scalar + num::Float + RealField> Consensus<E, Data> for Arrsac<R, T>
+impl<E, R, Data, T: num::Float + RealField> Consensus<E, Data> for Arrsac<R, T>
 where
     E: Estimator<Data>,
     R: RngCore,

@@ -247,7 +247,7 @@ impl<T: ComplexField<RealField = T> + Default, I> PointCloud<Point3Infoed<T, I>>
     }
 }
 
-impl<T: Scalar + Default + ComplexField<RealField = T>, I> PointCloud<Point3Infoed<T, I>> {
+impl<T: Default + ComplexField<RealField = T>, I> PointCloud<Point3Infoed<T, I>> {
     #[allow(clippy::type_complexity)]
     pub fn centroid_and_cov_matrix(&self) -> (Option<(Vector4<T>, Matrix3<T>)>, usize) {
         let c = match self.storage.iter().find(|v| v.is_finite()) {

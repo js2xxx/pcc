@@ -167,7 +167,7 @@ impl<'a, T: RealField + Copy> Node<'a, T> {
     }
 }
 
-impl<'a, T: Scalar + Copy + RealField> Node<'a, T> {
+impl<'a, T: Copy + RealField> Node<'a, T> {
     pub fn insert(&mut self, index: usize, pivot: &'a Vector4<T>) {
         let mut node = self;
         loop {
@@ -234,7 +234,7 @@ fn check_and_set(index: usize, checker: &mut BitVec) -> bool {
     ret
 }
 
-impl<'a, T: Scalar + Copy + RealField> Node<'a, T> {
+impl<'a, T: Copy + RealField> Node<'a, T> {
     fn search_one(
         &self,
         pivot: &Vector4<T>,

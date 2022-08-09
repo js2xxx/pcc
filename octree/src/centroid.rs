@@ -1,7 +1,7 @@
 use std::{iter::Sum, ops::Add};
 
 use nalgebra::{ClosedAdd, ComplexField, RealField, Scalar, Vector4};
-use num::{Float, ToPrimitive};
+use num::ToPrimitive;
 use pcc_common::{point_cloud::PointCloud, points::Point3Infoed};
 
 use crate::{node::Node, point_cloud::coords_to_key, CreateOptions, OcTreePc};
@@ -57,7 +57,7 @@ impl<T: Scalar + num::Zero> Default for OcTreePcCentroid<T> {
     }
 }
 
-impl<T: Float + RealField> OcTreePcCentroid<T> {
+impl<T: RealField + ToPrimitive> OcTreePcCentroid<T> {
     pub fn from_point_cloud<I>(
         point_cloud: &PointCloud<Point3Infoed<T, I>>,
         options: CreateOptions<T>,
@@ -65,9 +65,9 @@ impl<T: Float + RealField> OcTreePcCentroid<T> {
         OcTreePcCentroid {
             inner: OcTreePc::new(point_cloud, options, |tree, mul, add| {
                 for point in point_cloud.iter() {
-                    let key = coords_to_key(&point.coords, mul, add);
+                    let key = coords_to_key(&point.coords, mul.clone(), add);
                     let leaf = tree.get_or_insert_with(&key, Leaf::default);
-                    leaf.sum += point.coords;
+                    leaf.sum += &point.coords;
                     leaf.count += 1;
                 }
             }),

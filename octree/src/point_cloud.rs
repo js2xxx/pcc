@@ -4,7 +4,7 @@ use std::{
 };
 
 use nalgebra::{ComplexField, RealField, Scalar, Vector4};
-use num::{Float, ToPrimitive};
+use num::ToPrimitive;
 use pcc_common::{point_cloud::PointCloud, points::Point3Infoed};
 
 use crate::OcTree;
@@ -33,7 +33,7 @@ pub struct CreateOptions<T> {
     pub bound: Option<(Vector4<T>, Vector4<T>)>,
 }
 
-impl<L, T: Float + RealField> OcTreePc<L, T> {
+impl<L, T: RealField + ToPrimitive> OcTreePc<L, T> {
     pub fn new<I, F>(
         point_cloud: &PointCloud<Point3Infoed<T, I>>,
         options: CreateOptions<T>,
@@ -48,9 +48,9 @@ impl<L, T: Float + RealField> OcTreePc<L, T> {
         };
 
         let mul = options.resolution;
-        let len = max - min;
+        let len = &max - &min;
 
-        let depth = ComplexField::ceil(ComplexField::log2((len / mul).xyz().max()))
+        let depth = ComplexField::ceil(ComplexField::log2((len / mul.clone()).xyz().max()))
             .to_usize()
             .expect("Failed to get the depth of the OC tree");
 
@@ -58,13 +58,18 @@ impl<L, T: Float + RealField> OcTreePc<L, T> {
 
         let add = {
             let center_value = T::from_usize(max_value / 2).unwrap();
-            let center_key = Vector4::from([center_value, center_value, center_value, T::one()]);
-            let center = (max + min) / (T::one() + T::one());
+            let center_key = Vector4::from([
+                center_value.clone(),
+                center_value.clone(),
+                center_value,
+                T::one(),
+            ]);
+            let center = (&max + &min) / (T::one() + T::one());
             center - center_key
         };
 
         let mut inner = OcTree::new(depth);
-        build(&mut inner, mul, &add);
+        build(&mut inner, mul.clone(), &add);
 
         OcTreePc {
             inner,
