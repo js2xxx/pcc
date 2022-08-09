@@ -8,7 +8,7 @@ use std::{
 use nalgebra::{ClosedSub, ComplexField, Matrix3, SVector, Scalar, Vector4};
 
 use self::transforms::Transform;
-use crate::points::Point3Infoed;
+use crate::points::{Centroid, Point3Infoed};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PointCloud<T> {
@@ -138,7 +138,7 @@ impl<T: Scalar, I> Default for PointCloud<Point3Infoed<T, I>> {
 }
 
 impl<T: Scalar + ComplexField<RealField = T> + Default, I> PointCloud<Point3Infoed<T, I>> {
-    pub fn centroid(&self) -> (Option<Vector4<T>>, usize) {
+    pub fn centroid_coords(&self) -> (Option<Vector4<T>>, usize) {
         let (acc, num) = if self.bounded {
             self.storage
                 .iter()
@@ -157,13 +157,38 @@ impl<T: Scalar + ComplexField<RealField = T> + Default, I> PointCloud<Point3Info
                 })
         };
 
-        if num > 0 {
+        let ret = (num > 0).then(|| {
             let mut ret = acc.unscale(T::from_usize(num).unwrap());
             ret.w = T::one();
-            (Some(ret), num)
+            ret
+        });
+        (ret, num)
+    }
+}
+
+impl<T: Scalar + ComplexField<RealField = T> + Centroid + Default, I: Centroid>
+    PointCloud<Point3Infoed<T, I>>
+where
+    T::Accumulator: Default,
+    I::Accumulator: Default,
+{
+    pub fn centroid(&self) -> (Option<Point3Infoed<T, I>>, usize) {
+        let ret = if self.bounded {
+            { self.storage.iter() }.fold(Centroid::default_builder(), |mut acc, v| {
+                acc.accumulate(v);
+                acc
+            })
         } else {
-            (None, num)
-        }
+            { self.storage.iter() }.fold(Centroid::default_builder(), |mut acc, v| {
+                if v.is_finite() {
+                    acc.accumulate(v);
+                }
+                acc
+            })
+        };
+
+        let num = ret.num();
+        (ret.compute(), num)
     }
 }
 
@@ -222,9 +247,7 @@ impl<T: Scalar + ComplexField<RealField = T> + Default, I> PointCloud<Point3Info
     }
 }
 
-impl<T: Scalar + Default + ComplexField<RealField = T>, I>
-    PointCloud<Point3Infoed<T, I>>
-{
+impl<T: Scalar + Default + ComplexField<RealField = T>, I> PointCloud<Point3Infoed<T, I>> {
     #[allow(clippy::type_complexity)]
     pub fn centroid_and_cov_matrix(&self) -> (Option<(Vector4<T>, Matrix3<T>)>, usize) {
         let c = match self.storage.iter().find(|v| v.is_finite()) {

@@ -1,11 +1,33 @@
+mod centroid;
+
+use std::collections::HashMap;
+
 pub use nalgebra::Point3;
-use nalgebra::{Scalar, Vector4, ComplexField};
+use nalgebra::{ComplexField, Scalar, Vector4};
+
+pub use self::centroid::{Centroid, CentroidBuilder};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(align(16))]
 pub struct Point3Infoed<T: Scalar, I> {
     pub coords: Vector4<T>,
     pub extra: I,
+}
+
+impl<T: Scalar + ComplexField<RealField = T>, I: Centroid> Centroid for Point3Infoed<T, I> {
+    type Accumulator = (<Vector4<T> as Centroid>::Accumulator, I::Accumulator);
+
+    fn accumulate(&self, accum: &mut Self::Accumulator) {
+        self.coords.accumulate(&mut accum.0);
+        self.extra.accumulate(&mut accum.1);
+    }
+
+    fn compute(accum: Self::Accumulator, num: usize) -> Self {
+        Point3Infoed {
+            coords: Centroid::compute(accum.0, num),
+            extra: Centroid::compute(accum.1, num),
+        }
+    }
 }
 
 impl<T: Scalar, I> AsRef<Vector4<T>> for Point3Infoed<T, I> {
@@ -37,10 +59,44 @@ pub struct PointInfoHsv<T: Scalar> {
     pub v: T,
 }
 
+impl<T: Scalar + ComplexField<RealField = T>> Centroid for PointInfoHsv<T> {
+    type Accumulator = Self;
+
+    fn accumulate(&self, other: &mut Self) {
+        other.h += self.h.clone();
+        other.s += self.s.clone();
+        other.v += self.v.clone();
+    }
+
+    fn compute(accum: Self, num: usize) -> Self {
+        let num = T::from_usize(num).unwrap();
+        PointInfoHsv {
+            h: accum.h / num.clone(),
+            s: accum.s / num.clone(),
+            v: accum.v / num,
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(align(16))]
 pub struct PointInfoIntensity<T: Scalar> {
     pub intensity: T,
+}
+
+impl<T: Scalar + ComplexField<RealField = T>> Centroid for PointInfoIntensity<T> {
+    type Accumulator = Self;
+
+    fn accumulate(&self, other: &mut Self) {
+        other.intensity += self.intensity.clone();
+    }
+
+    fn compute(accum: Self, num: usize) -> Self {
+        let num = T::from_usize(num).unwrap();
+        PointInfoIntensity {
+            intensity: accum.intensity / num,
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -49,10 +105,51 @@ pub struct PointInfoLabel {
     pub label: u32,
 }
 
+impl Centroid for PointInfoLabel {
+    type Accumulator = HashMap<u32, usize>;
+
+    fn accumulate(&self, accum: &mut Self::Accumulator) {
+        if let Err(mut e) = accum.try_insert(self.label, 1) {
+            *e.entry.get_mut() += 1;
+        }
+    }
+
+    fn compute(accum: Self::Accumulator, _: usize) -> Self {
+        let (label, _) = { accum.into_iter() }
+            .fold(None, |acc, (label, times)| match acc {
+                Some((_, t)) if t >= times => acc,
+                _ => Some((label, times)),
+            })
+            .unwrap();
+        PointInfoLabel { label }
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(align(16))]
 pub struct PointInfoRgba {
     pub rgba: u32,
+}
+
+impl Centroid for PointInfoRgba {
+    type Accumulator = [f32; 4];
+
+    fn accumulate(&self, accum: &mut [f32; 4]) {
+        accum[0] += (self.rgba & 0xff) as f32;
+        accum[1] += ((self.rgba >> 8) & 0xff) as f32;
+        accum[2] += ((self.rgba >> 16) & 0xff) as f32;
+        accum[3] += (self.rgba >> 24) as f32;
+    }
+
+    fn compute(accum: [f32; 4], num: usize) -> Self {
+        let num = num as f32;
+        PointInfoRgba {
+            rgba: (accum[0] / num) as u32
+                | (((accum[1] / num) as u32) << 8)
+                | (((accum[2] / num) as u32) << 16)
+                | (((accum[3] / num) as u32) << 24),
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -60,6 +157,22 @@ pub struct PointInfoRgba {
 pub struct PointInfoNormal<T: Scalar> {
     pub normal: Vector4<T>,
     pub curvature: T,
+}
+
+impl<T: Scalar + ComplexField<RealField = T>> Centroid for PointInfoNormal<T> {
+    type Accumulator = Self;
+    fn accumulate(&self, other: &mut Self) {
+        other.normal += &self.normal;
+        other.curvature += self.curvature.clone();
+    }
+
+    fn compute(accum: Self, num: usize) -> Self {
+        let num = T::from_usize(num).unwrap();
+        PointInfoNormal {
+            normal: accum.normal / num.clone(),
+            curvature: accum.curvature / num,
+        }
+    }
 }
 
 pub type Point3H<T> = Point3Infoed<T, PointInfoHsv<T>>;
