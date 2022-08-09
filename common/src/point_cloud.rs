@@ -38,6 +38,29 @@ impl<T> PointCloud<T> {
     pub fn into_vec(self) -> Vec<T> {
         self.storage
     }
+
+    pub fn reinterpret(&mut self, width: usize) {
+        assert!(width > 0);
+        assert_eq!(self.storage.len() % width, 0);
+        self.width = width;
+    }
+}
+
+impl<T: Clone> PointCloud<T> {
+    pub fn try_create_sub(&self, indices: &[usize], width: usize) -> Option<Self> {
+        (width > 0 && indices.len() % width == 0).then(|| PointCloud {
+            storage: { indices.iter() }
+                .map(|&index| self.storage[index].clone())
+                .collect(),
+            width,
+            bounded: self.bounded,
+        })
+    }
+
+    pub fn create_sub(&self, indices: &[usize], width: usize) -> Self {
+        self.try_create_sub(indices, width)
+            .expect("The length of the vector must be divisible by width")
+    }
 }
 
 impl<T> Deref for PointCloud<T> {
@@ -45,6 +68,20 @@ impl<T> Deref for PointCloud<T> {
 
     fn deref(&self) -> &Self::Target {
         &self.storage
+    }
+}
+
+impl<T> Index<usize> for PointCloud<T> {
+    type Output = T;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.storage[index]
+    }
+}
+
+impl<T> IndexMut<usize> for PointCloud<T> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.storage[index]
     }
 }
 
@@ -77,7 +114,7 @@ impl<T: Scalar + Float, I> PointCloud<Point3Infoed<T, I>> {
         storage: Vec<Point3Infoed<T, I>>,
         width: usize,
     ) -> Result<Self, Vec<Point3Infoed<T, I>>> {
-        if storage.len() % width == 0 {
+        if width > 0 && storage.len() % width == 0 {
             let bounded = storage.iter().all(|p| p.is_finite());
             Ok(PointCloud {
                 storage,

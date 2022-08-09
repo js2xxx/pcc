@@ -196,16 +196,13 @@ impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialO
     }
 }
 
-impl<'a, T: Scalar + Float + ComplexField<RealField = T>> pcc_common::search::Searcher<'a, T>
-    for OcTreePcSearch<'a, T>
-{
-    type FromExtra = CreateOptions<T>;
-    fn from_point_cloud<I>(
+impl<'a, T: Scalar + Float + ComplexField<RealField = T>> OcTreePcSearch<'a, T> {
+    pub fn new<I>(
         point_cloud: &'a PointCloud<Point3Infoed<T, I>>,
         options: CreateOptions<T>,
     ) -> Self {
         OcTreePcSearch {
-            inner: OcTreePc::from_point_cloud(point_cloud, options, |tree, mul, add| {
+            inner: OcTreePc::new(point_cloud, options, |tree, mul, add| {
                 for (index, point) in point_cloud.iter().enumerate() {
                     let key = crate::point_cloud::coords_to_key(&point.coords, mul, add);
                     let vec = tree.get_or_insert_with(&key, Vec::new);
@@ -214,7 +211,11 @@ impl<'a, T: Scalar + Float + ComplexField<RealField = T>> pcc_common::search::Se
             }),
         }
     }
+}
 
+impl<'a, T: Scalar + Float + ComplexField<RealField = T>> pcc_common::search::Searcher<'a, T>
+    for OcTreePcSearch<'a, T>
+{
     fn search(&self, pivot: &Vector4<T>, ty: SearchType<T>, result: &mut Vec<usize>) {
         match ty {
             SearchType::Knn(num) => self.knn_search(pivot, num, result),

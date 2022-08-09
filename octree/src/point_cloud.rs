@@ -34,7 +34,7 @@ pub struct CreateOptions<T> {
 }
 
 impl<L, T: Scalar + Float + ComplexField<RealField = T>> OcTreePc<L, T> {
-    pub fn from_point_cloud<I, F>(
+    pub fn new<I, F>(
         point_cloud: &PointCloud<Point3Infoed<T, I>>,
         options: CreateOptions<T>,
         build: F,

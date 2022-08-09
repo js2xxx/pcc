@@ -63,7 +63,7 @@ impl<T: Scalar + Float + ComplexField<RealField = T>> OcTreePcCentroid<T> {
         options: CreateOptions<T>,
     ) -> Self {
         OcTreePcCentroid {
-            inner: OcTreePc::from_point_cloud(point_cloud, options, |tree, mul, add| {
+            inner: OcTreePc::new(point_cloud, options, |tree, mul, add| {
                 for point in point_cloud.iter() {
                     let key = coords_to_key(&point.coords, mul, add);
                     let leaf = tree.get_or_insert_with(&key, Leaf::default);

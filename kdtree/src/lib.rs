@@ -16,8 +16,8 @@ pub struct KdTree<'a, T: Scalar> {
     indices: Vec<usize>,
 }
 
-impl<'a, T: Scalar> KdTree<'a, T> {
-    pub fn new() -> Self {
+impl<'a, T: Scalar> Default for KdTree<'a, T> {
+    fn default() -> Self {
         KdTree {
             root: None,
             indices: Vec::new(),
@@ -42,11 +42,7 @@ impl<'a, T: Scalar + Copy + ComplexField<RealField = T> + PartialOrd> KdTree<'a,
 }
 
 impl<'a, T: Scalar + Copy + ComplexField<RealField = T> + PartialOrd> KdTree<'a, T> {
-    pub fn search(
-        &self,
-        pivot: &Vector4<T>,
-        result: &mut impl ResultSet<Key = T, Value = usize>,
-    ) {
+    pub fn search(&self, pivot: &Vector4<T>, result: &mut impl ResultSet<Key = T, Value = usize>) {
         if let Some(root) = self.root {
             unsafe { root.as_ref() }.search(pivot, result)
         }
@@ -63,12 +59,6 @@ impl<'a, T: Scalar + Copy + ComplexField<RealField = T> + PartialOrd> KdTree<'a,
     }
 }
 
-impl<'a, T: Scalar> Default for KdTree<'a, T> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl<'a, T: Scalar> Drop for KdTree<'a, T> {
     fn drop(&mut self) {
         if let Some(mut root) = self.root {
@@ -80,10 +70,8 @@ impl<'a, T: Scalar> Drop for KdTree<'a, T> {
     }
 }
 
-impl<'a, T: Scalar + ComplexField<RealField = T> + Copy + PartialOrd>
-    pcc_common::search::Searcher<'a, T> for KdTree<'a, T>
-{
-    fn from_point_cloud<I>(point_cloud: &'a PointCloud<Point3Infoed<T, I>>, _: ()) -> Self {
+impl<'a, T: Scalar + ComplexField<RealField = T> + Copy + PartialOrd> KdTree<'a, T> {
+    pub fn new<I>(point_cloud: &'a PointCloud<Point3Infoed<T, I>>) -> Self {
         if !point_cloud.is_empty() {
             let mut indices = (0..point_cloud.len()).collect::<Vec<_>>();
             let root = Node::build(0, point_cloud, &mut indices, None);
@@ -95,7 +83,11 @@ impl<'a, T: Scalar + ComplexField<RealField = T> + Copy + PartialOrd>
             Default::default()
         }
     }
+}
 
+impl<'a, T: Scalar + ComplexField<RealField = T> + Copy + PartialOrd>
+    pcc_common::search::Searcher<'a, T> for KdTree<'a, T>
+{
     fn search(&self, pivot: &Vector4<T>, ty: SearchType<T>, result: &mut Vec<usize>) {
         result.clear();
         match ty {
@@ -112,12 +104,7 @@ impl<'a, T: Scalar + ComplexField<RealField = T> + Copy + PartialOrd>
         }
     }
 
-    fn search_exact(
-        &self,
-        pivot: &Vector4<T>,
-        ty: SearchType<T>,
-        result: &mut Vec<usize>,
-    ) {
+    fn search_exact(&self, pivot: &Vector4<T>, ty: SearchType<T>, result: &mut Vec<usize>) {
         result.clear();
         match ty {
             SearchType::Knn(num) => {

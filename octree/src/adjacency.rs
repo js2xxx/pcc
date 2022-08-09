@@ -39,7 +39,7 @@ impl<'a, L: Default, T: Scalar + Float + ComplexField<RealField = T>> OcTreePcAd
         options: CreateOptions<T>,
     ) -> Self {
         let mut tree = OcTreePcAdjacency {
-            inner: OcTreePc::from_point_cloud(point_cloud, options, |tree, mul, add| {
+            inner: OcTreePc::new(point_cloud, options, |tree, mul, add| {
                 for point in point_cloud.iter() {
                     let key = coords_to_key(&point.coords, mul, add);
                     let leaf: &mut Leaf<_> = tree.get_or_insert_with(&key, Default::default);
