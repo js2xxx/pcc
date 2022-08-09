@@ -19,7 +19,7 @@ impl<T: Scalar> Median2<T> {
 
 impl<T: RealField, I: Debug + Clone> ApproxFilter<PointCloud<Point3Infoed<T, I>>> for Median2<T> {
     fn filter(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> PointCloud<Point3Infoed<T, I>> {
-        let mut pc = input.clone();
+        let mut output = input.clone();
 
         let mut values: [_; 9] = array::from_fn(|_| T::zero());
         let mut value_index;
@@ -48,14 +48,14 @@ impl<T: RealField, I: Debug + Clone> ApproxFilter<PointCloud<Point3Infoed<T, I>>
                     });
 
                 if input[(x, y)].coords.z.clone() - median.clone() <= self.max_displacement {
-                    pc[(x, y)].coords.z = median.clone()
+                    output[(x, y)].coords.z = median.clone()
                 } else {
-                    pc[(x, y)].coords.z += { self.max_displacement.clone() }
+                    output[(x, y)].coords.z += { self.max_displacement.clone() }
                         .copysign(median.clone() - input[(x, y)].coords.z.clone())
                 }
             }
         }
 
-        pc
+        output
     }
 }

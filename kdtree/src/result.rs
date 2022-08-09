@@ -58,6 +58,10 @@ impl<K: PartialOrd, V: PartialOrd> KnnResultSet<K, V> {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.data.clear();
+    }
+
     pub fn len(&self) -> usize {
         self.data.len()
     }
@@ -118,6 +122,10 @@ impl<K: PartialOrd, V: PartialOrd> RadiusResultSet<K, V> {
             data: Vec::with_capacity(128),
             radius,
         }
+    }
+
+    pub fn clear(&mut self) {
+        self.data.clear();
     }
 
     pub fn len(&self) -> usize {

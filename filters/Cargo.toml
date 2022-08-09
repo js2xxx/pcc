@@ -6,6 +6,7 @@ version = "0.1.0"
 [dependencies]
 # Local crates
 pcc-common = {path = "../common"}
+pcc-kdtree = {path = "../kdtree"}
 # External crates
 nalgebra = "0"
 num = "0"

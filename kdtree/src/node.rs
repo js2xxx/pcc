@@ -88,7 +88,7 @@ fn cut_split<T: Scalar + PartialOrd, P: AsRef<Vector4<T>>>(
     (limit_left, limit_right)
 }
 
-fn cut<T: RealField + Copy, P: AsRef<Vector4<T>>>(
+fn cut<T: RealField, P: AsRef<Vector4<T>>>(
     coords: &[P],
     indices: &mut [usize],
     last: Option<usize>,
@@ -101,7 +101,7 @@ fn cut<T: RealField + Copy, P: AsRef<Vector4<T>>>(
     let var = { indices.iter() }.map(|&i| coords[i].as_ref().xyz()).fold(
         Vector3::zeros(),
         |acc, coord| {
-            let diff = coord - mean;
+            let diff = coord - mean.clone();
             acc + diff.component_mul(&diff)
         },
     );
@@ -122,7 +122,7 @@ fn cut<T: RealField + Copy, P: AsRef<Vector4<T>>>(
         }
     };
 
-    let value = mean[dim];
+    let value = mean[dim].clone();
     let (limit_left, limit_right) = cut_split(coords, indices, dim, value);
 
     let mid = indices.len() / 2;
@@ -134,10 +134,10 @@ fn cut<T: RealField + Copy, P: AsRef<Vector4<T>>>(
         mid
     };
 
-    (split, dim, mean[dim])
+    (split, dim, mean[dim].clone())
 }
 
-impl<'a, T: RealField + Copy> Node<'a, T> {
+impl<'a, T: RealField> Node<'a, T> {
     pub fn build<P>(
         start_index: usize,
         coords: &'a [P],
@@ -167,7 +167,7 @@ impl<'a, T: RealField + Copy> Node<'a, T> {
     }
 }
 
-impl<'a, T: Copy + RealField> Node<'a, T> {
+impl<'a, T: RealField> Node<'a, T> {
     pub fn insert(&mut self, index: usize, pivot: &'a Vector4<T>) {
         let mut node = self;
         loop {
@@ -178,7 +178,7 @@ impl<'a, T: Copy + RealField> Node<'a, T> {
                 } => {
                     let (dim, _) = { pivot.xyz().iter() }
                         .zip(coord.xyz().iter())
-                        .map(|(&x, &y)| (x - y).abs())
+                        .map(|(x, y)| (x.clone() - y.clone()).abs())
                         .enumerate()
                         .fold(
                             (0, T::zero()),
@@ -200,7 +200,7 @@ impl<'a, T: Copy + RealField> Node<'a, T> {
                             [other, one]
                         },
                         dim,
-                        value: (coord[dim] + pivot[dim]) / (T::one() + T::one()),
+                        value: (coord[dim].clone() + pivot[dim].clone()) / (T::one() + T::one()),
                     };
 
                     break;
@@ -208,9 +208,9 @@ impl<'a, T: Copy + RealField> Node<'a, T> {
                 Node::Branch {
                     children: [left, right],
                     dim,
-                    value,
+                    ref value,
                 } => {
-                    if pivot[dim] < value {
+                    if pivot[dim] < *value {
                         left
                     } else {
                         right
@@ -234,7 +234,7 @@ fn check_and_set(index: usize, checker: &mut BitVec) -> bool {
     ret
 }
 
-impl<'a, T: Copy + RealField> Node<'a, T> {
+impl<'a, T: RealField> Node<'a, T> {
     fn search_one(
         &self,
         pivot: &Vector4<T>,
@@ -255,15 +255,15 @@ impl<'a, T: Copy + RealField> Node<'a, T> {
                 Node::Branch {
                     children: [left, right],
                     dim,
-                    value,
+                    ref value,
                 } => {
-                    let (next, other) = if pivot[dim] < value {
+                    let (next, other) = if pivot[dim] < *value {
                         (left, Some(right))
                     } else {
                         (right, Some(left))
                     };
 
-                    let min_distance = (pivot[dim] - value).abs();
+                    let min_distance = (pivot[dim].clone() - value.clone()).abs();
                     if let Some(other) = other {
                         if result.max_key() < Some(&min_distance) || !result.is_full() {
                             other_branches.push(other)
@@ -289,9 +289,9 @@ impl<'a, T: Copy + RealField> Node<'a, T> {
             Node::Branch {
                 children: [left, right],
                 dim,
-                value,
+                ref value,
             } => {
-                let (next, other) = if pivot[dim] < value {
+                let (next, other) = if pivot[dim] < *value {
                     (left, Some(right))
                 } else {
                     (right, Some(left))
@@ -299,7 +299,7 @@ impl<'a, T: Copy + RealField> Node<'a, T> {
 
                 unsafe { next.as_ref() }.search_exact(pivot, result);
 
-                let min_distance = (pivot[dim] - value).abs();
+                let min_distance = (pivot[dim].clone() - value.clone()).abs();
                 if let Some(other) = other {
                     if result.max_key() < Some(&min_distance) {
                         unsafe { other.as_ref() }.search_exact(pivot, result)
