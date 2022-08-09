@@ -1,4 +1,4 @@
-use nalgebra::{ComplexField, Scalar, Vector4};
+use nalgebra::{ComplexField, RealField, Scalar, Vector4};
 use num::ToPrimitive;
 use sample_consensus::{Estimator, Model};
 
@@ -13,7 +13,7 @@ pub struct Cone<T: Scalar> {
     height: T,
 }
 
-impl<T: Scalar + ComplexField<RealField = T>> Cone<T> {
+impl<T: ComplexField<RealField = T>> Cone<T> {
     pub fn top_point(&self) -> Vector4<T> {
         let diff = self
             .circle
@@ -30,7 +30,7 @@ impl<T: Scalar + ComplexField<RealField = T>> Cone<T> {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + PartialOrd> Cone<T> {
+impl<T: RealField> Cone<T> {
     pub fn distance(&self, point: &Vector4<T>) -> T {
         let generatrix = self.generatrix(point);
         let top_point = self.top_point();
@@ -51,9 +51,7 @@ impl<T: Scalar + ComplexField<RealField = T> + PartialOrd> Cone<T> {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + PartialOrd + ToPrimitive> Model<Vector4<T>>
-    for Cone<T>
-{
+impl<T: RealField + ToPrimitive> Model<Vector4<T>> for Cone<T> {
     fn residual(&self, data: &Vector4<T>) -> f64 {
         self.distance(data).to_f64().unwrap()
     }
@@ -62,7 +60,7 @@ impl<T: Scalar + ComplexField<RealField = T> + PartialOrd + ToPrimitive> Model<V
 pub struct ConeEstimator;
 
 impl ConeEstimator {
-    fn try_make<T: Scalar + ComplexField<RealField = T> + PartialOrd>(
+    fn try_make<T: RealField>(
         ca: &Vector4<T>,
         cb: &Vector4<T>,
         cc: &Vector4<T>,
@@ -83,9 +81,7 @@ impl ConeEstimator {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive + PartialOrd> Estimator<Vector4<T>>
-    for ConeEstimator
-{
+impl<T: RealField + ToPrimitive> Estimator<Vector4<T>> for ConeEstimator {
     type Model = Cone<T>;
 
     type ModelIter = Vec<Cone<T>>;

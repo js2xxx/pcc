@@ -8,14 +8,14 @@ pub struct Sphere<T: Scalar> {
     pub radius: T,
 }
 
-impl<T: Scalar + ComplexField<RealField = T>> Sphere<T> {
+impl<T: ComplexField<RealField = T>> Sphere<T> {
     pub fn distance(&self, point: &Vector4<T>) -> T {
         let radius = (point - &self.coords).xyz().norm();
         (radius - self.radius.clone()).abs()
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive> Model<Vector4<T>> for Sphere<T> {
+impl<T: ComplexField<RealField = T> + ToPrimitive> Model<Vector4<T>> for Sphere<T> {
     fn residual(&self, data: &Vector4<T>) -> f64 {
         self.distance(data).to_f64().unwrap()
     }
@@ -23,9 +23,7 @@ impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive> Model<Vector4<T>> fo
 
 pub struct SphereEstimator;
 
-impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive> Estimator<Vector4<T>>
-    for SphereEstimator
-{
+impl<T: ComplexField<RealField = T> + ToPrimitive> Estimator<Vector4<T>> for SphereEstimator {
     type Model = Sphere<T>;
 
     type ModelIter = Option<Sphere<T>>;

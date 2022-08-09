@@ -1,4 +1,4 @@
-use nalgebra::{matrix, ComplexField, Scalar, Vector3, Vector4};
+use nalgebra::{matrix, ComplexField, RealField, Scalar, Vector3, Vector4};
 use num::ToPrimitive;
 use sample_consensus::{Estimator, Model};
 
@@ -27,7 +27,7 @@ impl<T: Scalar> Circle<T> {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T>> Circle<T> {
+impl<T: ComplexField<RealField = T>> Circle<T> {
     pub(crate) fn target_radius(&self, point: &Vector4<T>) -> Vector4<T> {
         let delta = (point - &self.center).xyz();
         let normal = self.normal.xyz();
@@ -46,7 +46,7 @@ impl<T: Scalar + ComplexField<RealField = T>> Circle<T> {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + PartialOrd> Circle<T> {
+impl<T: RealField> Circle<T> {
     pub fn distance(&self, point: &Vector4<T>) -> T {
         let mut ret = self.circumference_distance(point);
         if self.axis().distance(point) <= self.radius {
@@ -59,9 +59,7 @@ impl<T: Scalar + ComplexField<RealField = T> + PartialOrd> Circle<T> {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive + PartialOrd> Model<Vector4<T>>
-    for Circle<T>
-{
+impl<T: RealField + ToPrimitive> Model<Vector4<T>> for Circle<T> {
     fn residual(&self, data: &Vector4<T>) -> f64 {
         self.distance(data).to_f64().unwrap()
     }
@@ -70,7 +68,7 @@ impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive + PartialOrd> Model<V
 pub struct CircleEstimator;
 
 impl CircleEstimator {
-    pub(crate) fn make<T: Scalar + ComplexField<RealField = T>>(
+    pub(crate) fn make<T: ComplexField<RealField = T>>(
         a: &Vector4<T>,
         b: &Vector4<T>,
         c: &Vector4<T>,
@@ -115,9 +113,7 @@ impl CircleEstimator {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive + PartialOrd> Estimator<Vector4<T>>
-    for CircleEstimator
-{
+impl<T: RealField + ToPrimitive> Estimator<Vector4<T>> for CircleEstimator {
     type Model = Circle<T>;
 
     type ModelIter = Option<Circle<T>>;

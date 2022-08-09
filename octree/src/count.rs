@@ -1,4 +1,4 @@
-use nalgebra::{ComplexField, Scalar, Vector4};
+use nalgebra::{RealField, Scalar, Vector4};
 use num::{Float, ToPrimitive};
 use pcc_common::{point_cloud::PointCloud, points::Point3Infoed};
 
@@ -17,7 +17,7 @@ impl<T: Scalar + num::Zero> Default for OcTreePcCount<T> {
     }
 }
 
-impl<T: Scalar + Float + ComplexField<RealField = T>> OcTreePcCount<T> {
+impl<T: Float + RealField> OcTreePcCount<T> {
     pub fn from_point_cloud<I>(
         point_cloud: &PointCloud<Point3Infoed<T, I>>,
         options: CreateOptions<T>,
@@ -33,7 +33,7 @@ impl<T: Scalar + Float + ComplexField<RealField = T>> OcTreePcCount<T> {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialOrd> OcTreePcCount<T> {
+impl<T: RealField + ToPrimitive + Copy> OcTreePcCount<T> {
     pub fn count_at(&self, coords: &Vector4<T>) -> Option<usize> {
         let key = self.inner.coords_to_key(coords);
         self.inner.get(&key).copied()

@@ -1,4 +1,4 @@
-use nalgebra::{ComplexField, SVector, Scalar};
+use nalgebra::{ComplexField, SVector};
 
 pub trait Centroid {
     type Accumulator;
@@ -57,7 +57,7 @@ impl<T: Centroid> CentroidBuilder<T> {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T>, const D: usize> Centroid for SVector<T, D> {
+impl<T: ComplexField<RealField = T>, const D: usize> Centroid for SVector<T, D> {
     type Accumulator = Self;
 
     fn accumulate(&self, accum: &mut Self::Accumulator) {

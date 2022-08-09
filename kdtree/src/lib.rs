@@ -5,7 +5,7 @@ mod result;
 
 use std::ptr::NonNull;
 
-use nalgebra::{ComplexField, Scalar, Vector4};
+use nalgebra::{RealField, Scalar, Vector4};
 use node::Node;
 use pcc_common::{point_cloud::PointCloud, points::Point3Infoed, search::SearchType};
 
@@ -25,7 +25,7 @@ impl<'a, T: Scalar> Default for KdTree<'a, T> {
     }
 }
 
-impl<'a, T: Scalar + Copy + ComplexField<RealField = T> + PartialOrd> KdTree<'a, T> {
+impl<'a, T: Scalar + Copy + RealField> KdTree<'a, T> {
     pub fn insert(&mut self, index: usize, pivot: &'a Vector4<T>) {
         match self.root {
             Some(mut root) => unsafe { root.as_mut() }.insert(index, pivot),
@@ -41,7 +41,7 @@ impl<'a, T: Scalar + Copy + ComplexField<RealField = T> + PartialOrd> KdTree<'a,
     }
 }
 
-impl<'a, T: Scalar + Copy + ComplexField<RealField = T> + PartialOrd> KdTree<'a, T> {
+impl<'a, T: Scalar + Copy + RealField> KdTree<'a, T> {
     pub fn search(&self, pivot: &Vector4<T>, result: &mut impl ResultSet<Key = T, Value = usize>) {
         if let Some(root) = self.root {
             unsafe { root.as_ref() }.search(pivot, result)
@@ -70,7 +70,7 @@ impl<'a, T: Scalar> Drop for KdTree<'a, T> {
     }
 }
 
-impl<'a, T: Scalar + ComplexField<RealField = T> + Copy + PartialOrd> KdTree<'a, T> {
+impl<'a, T: RealField + Copy> KdTree<'a, T> {
     pub fn new<I>(point_cloud: &'a PointCloud<Point3Infoed<T, I>>) -> Self {
         if !point_cloud.is_empty() {
             let mut indices = (0..point_cloud.len()).collect::<Vec<_>>();
@@ -85,9 +85,7 @@ impl<'a, T: Scalar + ComplexField<RealField = T> + Copy + PartialOrd> KdTree<'a,
     }
 }
 
-impl<'a, T: Scalar + ComplexField<RealField = T> + Copy + PartialOrd>
-    pcc_common::search::Searcher<'a, T> for KdTree<'a, T>
-{
+impl<'a, T: RealField + Copy> pcc_common::search::Searcher<'a, T> for KdTree<'a, T> {
     fn search(&self, pivot: &Vector4<T>, ty: SearchType<T>, result: &mut Vec<usize>) {
         result.clear();
         match ty {

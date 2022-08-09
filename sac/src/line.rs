@@ -1,4 +1,4 @@
-use nalgebra::{ComplexField, Scalar, Vector4};
+use nalgebra::{ComplexField, RealField, Scalar, Vector4};
 use num::ToPrimitive;
 use sample_consensus::{Estimator, Model};
 
@@ -8,7 +8,7 @@ pub struct Line<T: Scalar> {
     pub direction: Vector4<T>,
 }
 
-impl<T: Scalar + ComplexField<RealField = T>> Line<T> {
+impl<T: ComplexField<RealField = T>> Line<T> {
     pub fn distance_squared(&self, point: &Vector4<T>) -> T {
         let side = (point - self.coords.clone()).xyz();
         let dot = side.dot(&self.direction.xyz());
@@ -22,7 +22,7 @@ impl<T: Scalar + ComplexField<RealField = T>> Line<T> {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + PartialOrd> Line<T> {
+impl<T: RealField> Line<T> {
     pub fn stick_distance_squared(&self, point: &Vector4<T>) -> T {
         let v1 = (point - &self.coords).xyz();
         let v2 = (point - &self.coords - &self.direction).xyz();
@@ -50,7 +50,7 @@ impl<T: Scalar + ComplexField<RealField = T> + PartialOrd> Line<T> {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive> Model<Vector4<T>> for Line<T> {
+impl<T: ComplexField<RealField = T> + ToPrimitive> Model<Vector4<T>> for Line<T> {
     fn residual(&self, data: &Vector4<T>) -> f64 {
         self.distance(data).to_f64().unwrap()
     }
@@ -59,10 +59,7 @@ impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive> Model<Vector4<T>> fo
 pub struct LineEstimator;
 
 impl LineEstimator {
-    pub(crate) fn make<T: Scalar + ComplexField<RealField = T>>(
-        a: &Vector4<T>,
-        b: &Vector4<T>,
-    ) -> Line<T> {
+    pub(crate) fn make<T: ComplexField<RealField = T>>(a: &Vector4<T>, b: &Vector4<T>) -> Line<T> {
         Line {
             coords: a.clone(),
             direction: b - a,
@@ -70,9 +67,7 @@ impl LineEstimator {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive> Estimator<Vector4<T>>
-    for LineEstimator
-{
+impl<T: ComplexField<RealField = T> + ToPrimitive> Estimator<Vector4<T>> for LineEstimator {
     type Model = Line<T>;
 
     type ModelIter = Option<Line<T>>;
@@ -94,7 +89,7 @@ pub struct ParallelLineEstimator<T: Scalar> {
     pub direction: Vector4<T>,
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive> Estimator<Vector4<T>>
+impl<T: ComplexField<RealField = T> + ToPrimitive> Estimator<Vector4<T>>
     for ParallelLineEstimator<T>
 {
     type Model = Line<T>;

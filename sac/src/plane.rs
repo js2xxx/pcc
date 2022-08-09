@@ -8,7 +8,7 @@ pub struct Plane<T: Scalar> {
     pub normal: Vector4<T>,
 }
 
-impl<T: Scalar + ComplexField<RealField = T>> Plane<T> {
+impl<T: ComplexField<RealField = T>> Plane<T> {
     pub fn distance(&self, point: &Vector4<T>) -> T {
         let side = (point - self.coords.clone()).xyz();
         let dot = side.dot(&self.normal.xyz());
@@ -22,7 +22,7 @@ impl<T: Scalar + ComplexField<RealField = T>> Plane<T> {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive> Model<Vector4<T>> for Plane<T> {
+impl<T: ComplexField<RealField = T> + ToPrimitive> Model<Vector4<T>> for Plane<T> {
     fn residual(&self, data: &Vector4<T>) -> f64 {
         self.distance(data).to_f64().unwrap()
     }
@@ -30,9 +30,7 @@ impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive> Model<Vector4<T>> fo
 
 pub struct PlaneEstimator;
 
-impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive> Estimator<Vector4<T>>
-    for PlaneEstimator
-{
+impl<T: ComplexField<RealField = T> + ToPrimitive> Estimator<Vector4<T>> for PlaneEstimator {
     type Model = Plane<T>;
 
     type ModelIter = Option<Plane<T>>;
@@ -68,7 +66,7 @@ pub struct PerpendicularPlaneEstimator<T: Scalar> {
     pub normal: Vector4<T>,
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive> Estimator<Vector4<T>>
+impl<T: ComplexField<RealField = T> + ToPrimitive> Estimator<Vector4<T>>
     for PerpendicularPlaneEstimator<T>
 {
     type Model = Plane<T>;
@@ -92,7 +90,7 @@ pub struct ParallelPlaneEstimator<T: Scalar> {
     pub direction: Vector4<T>,
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive> Estimator<Vector4<T>>
+impl<T: ComplexField<RealField = T> + ToPrimitive> Estimator<Vector4<T>>
     for ParallelPlaneEstimator<T>
 {
     type Model = Plane<T>;

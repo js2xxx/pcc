@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use nalgebra::{ComplexField, Scalar, Vector4};
+use nalgebra::{RealField, Scalar, Vector4};
 use num::{Float, ToPrimitive};
 use pcc_common::{point_cloud::PointCloud, points::Point3Infoed, search::SearchType};
 
@@ -21,17 +21,13 @@ impl<'a, T: Scalar + num::Zero> Default for OcTreePcSearch<'a, T> {
     }
 }
 
-impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialOrd>
-    OcTreePcSearch<'a, T>
-{
+impl<'a, T: RealField + ToPrimitive + Copy> OcTreePcSearch<'a, T> {
     fn half_diagonal(&self, depth: usize) -> T {
         self.inner.diagonal(depth) / (T::one() + T::one())
     }
 }
 
-impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialOrd>
-    OcTreePcSearch<'a, T>
-{
+impl<'a, T: RealField + ToPrimitive + Copy> OcTreePcSearch<'a, T> {
     pub fn voxel_search<'b>(&'b self, pivot: &Vector4<T>) -> &'b [(usize, &'a Vector4<T>)] {
         let key = self.inner.coords_to_key(pivot);
         self.inner.get(&key).map_or(&[], Deref::deref)
@@ -44,9 +40,7 @@ struct NodeKey<'b, 'a, T: Scalar> {
     key: [usize; 3],
 }
 
-impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialOrd>
-    OcTreePcSearch<'a, T>
-{
+impl<'a, T: RealField + Copy + ToPrimitive> OcTreePcSearch<'a, T> {
     pub fn knn_search(&self, pivot: &Vector4<T>, num: usize, result_set: &mut Vec<usize>) {
         let mut rs = Vec::new();
         if let Some(node) = self.inner.root() {
@@ -137,9 +131,7 @@ impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialO
     }
 }
 
-impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialOrd>
-    OcTreePcSearch<'a, T>
-{
+impl<'a, T: RealField + ToPrimitive + Copy> OcTreePcSearch<'a, T> {
     pub fn radius_search(&self, pivot: &Vector4<T>, radius: T, result_set: &mut Vec<usize>) {
         result_set.clear();
         if let Some(node) = self.inner.root() {
@@ -196,7 +188,7 @@ impl<'a, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialO
     }
 }
 
-impl<'a, T: Scalar + Float + ComplexField<RealField = T>> OcTreePcSearch<'a, T> {
+impl<'a, T: Float + RealField> OcTreePcSearch<'a, T> {
     pub fn new<I>(
         point_cloud: &'a PointCloud<Point3Infoed<T, I>>,
         options: CreateOptions<T>,
@@ -213,9 +205,7 @@ impl<'a, T: Scalar + Float + ComplexField<RealField = T>> OcTreePcSearch<'a, T> 
     }
 }
 
-impl<'a, T: Scalar + Float + ComplexField<RealField = T>> pcc_common::search::Searcher<'a, T>
-    for OcTreePcSearch<'a, T>
-{
+impl<'a, T: Float + RealField> pcc_common::search::Searcher<'a, T> for OcTreePcSearch<'a, T> {
     fn search(&self, pivot: &Vector4<T>, ty: SearchType<T>, result: &mut Vec<usize>) {
         match ty {
             SearchType::Knn(num) => self.knn_search(pivot, num, result),

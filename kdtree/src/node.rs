@@ -1,7 +1,7 @@
 use std::ptr::NonNull;
 
 use bitvec::vec::BitVec;
-use nalgebra::{ComplexField, Scalar, Vector3, Vector4};
+use nalgebra::{RealField, Scalar, Vector3, Vector4};
 
 use crate::ResultSet;
 
@@ -88,7 +88,7 @@ fn cut_split<T: Scalar + PartialOrd, P: AsRef<Vector4<T>>>(
     (limit_left, limit_right)
 }
 
-fn cut<T: Scalar + ComplexField<RealField = T> + Copy + PartialOrd, P: AsRef<Vector4<T>>>(
+fn cut<T: RealField + Copy, P: AsRef<Vector4<T>>>(
     coords: &[P],
     indices: &mut [usize],
     last: Option<usize>,
@@ -137,7 +137,7 @@ fn cut<T: Scalar + ComplexField<RealField = T> + Copy + PartialOrd, P: AsRef<Vec
     (split, dim, mean[dim])
 }
 
-impl<'a, T: Scalar + ComplexField<RealField = T> + Copy + PartialOrd> Node<'a, T> {
+impl<'a, T: RealField + Copy> Node<'a, T> {
     pub fn build<P>(
         start_index: usize,
         coords: &'a [P],
@@ -167,7 +167,7 @@ impl<'a, T: Scalar + ComplexField<RealField = T> + Copy + PartialOrd> Node<'a, T
     }
 }
 
-impl<'a, T: Scalar + Copy + ComplexField<RealField = T> + PartialOrd> Node<'a, T> {
+impl<'a, T: Scalar + Copy + RealField> Node<'a, T> {
     pub fn insert(&mut self, index: usize, pivot: &'a Vector4<T>) {
         let mut node = self;
         loop {
@@ -234,7 +234,7 @@ fn check_and_set(index: usize, checker: &mut BitVec) -> bool {
     ret
 }
 
-impl<'a, T: Scalar + Copy + ComplexField<RealField = T> + PartialOrd> Node<'a, T> {
+impl<'a, T: Scalar + Copy + RealField> Node<'a, T> {
     fn search_one(
         &self,
         pivot: &Vector4<T>,
@@ -309,11 +309,7 @@ impl<'a, T: Scalar + Copy + ComplexField<RealField = T> + PartialOrd> Node<'a, T
         }
     }
 
-    pub fn search(
-        &self,
-        pivot: &Vector4<T>,
-        result: &mut impl ResultSet<Key = T, Value = usize>,
-    ) {
+    pub fn search(&self, pivot: &Vector4<T>, result: &mut impl ResultSet<Key = T, Value = usize>) {
         let mut other_branches = Vec::new();
         let mut checker = BitVec::new();
 

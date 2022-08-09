@@ -2,7 +2,7 @@
 
 use core::cmp::Reverse;
 
-use nalgebra::{ComplexField, Scalar};
+use nalgebra::{RealField, Scalar};
 use num::FromPrimitive;
 use rand::RngCore;
 use sample_consensus::{Consensus, Estimator, Model};
@@ -162,7 +162,7 @@ where
     }
 }
 
-impl<R, T: Scalar + num::Float + ComplexField<RealField = T> + PartialOrd> Arrsac<R, T>
+impl<R, T: num::Float + RealField> Arrsac<R, T>
 where
     R: RngCore,
 {
@@ -442,8 +442,7 @@ where
     }
 }
 
-impl<E, R, Data, T: Scalar + num::Float + ComplexField<RealField = T> + PartialOrd>
-    Consensus<E, Data> for Arrsac<R, T>
+impl<E, R, Data, T: Scalar + num::Float + RealField> Consensus<E, Data> for Arrsac<R, T>
 where
     E: Estimator<Data>,
     R: RngCore,

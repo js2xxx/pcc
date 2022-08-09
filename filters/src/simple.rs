@@ -1,7 +1,12 @@
-use pcc_common::filter::Filter;
+use nalgebra::ComplexField;
+use pcc_common::{
+    filter::{ApproxFilter, Filter},
+    point_cloud::PointCloud,
+    points::Point3Infoed,
+};
 
 pub struct Simple<'a, T> {
-    constraint: Box<dyn FnMut(&T) -> bool + 'a>,
+    pub constraint: Box<dyn FnMut(&T) -> bool + 'a>,
 }
 
 impl<'a, T> Simple<'a, T> {
@@ -30,5 +35,15 @@ impl<'a, T: Clone> Filter<[T]> for Simple<'a, T> {
             ret
         });
         (indices, removed)
+    }
+}
+
+impl<'a, T: ComplexField<RealField = T>, I: std::fmt::Debug + Clone>
+    ApproxFilter<PointCloud<Point3Infoed<T, I>>> for Simple<'a, Point3Infoed<T, I>>
+{
+    fn filter(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> PointCloud<Point3Infoed<T, I>> {
+        let mut storage = Vec::from(&**input);
+        storage.retain(|point| (self.constraint)(point));
+        PointCloud::from_vec(storage, 1)
     }
 }

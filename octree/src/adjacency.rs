@@ -5,7 +5,7 @@ use std::{
     ptr::{self, NonNull},
 };
 
-use nalgebra::{ComplexField, Scalar, Vector3, Vector4};
+use nalgebra::{ComplexField, RealField, Scalar, Vector3, Vector4};
 use num::Float;
 use pcc_common::{point_cloud::PointCloud, points::Point3Infoed};
 use petgraph::prelude::UnGraph;
@@ -33,7 +33,7 @@ impl<'a, L, T: Scalar + num::Zero> Default for OcTreePcAdjacency<'a, L, T> {
     }
 }
 
-impl<'a, L: Default, T: Scalar + Float + ComplexField<RealField = T>> OcTreePcAdjacency<'a, L, T> {
+impl<'a, L: Default, T: Float + RealField> OcTreePcAdjacency<'a, L, T> {
     pub fn from_point_cloud<I>(
         point_cloud: &'a PointCloud<Point3Infoed<T, I>>,
         options: CreateOptions<T>,
@@ -89,7 +89,7 @@ impl<'a, L, T: Scalar> OcTreePcAdjacency<'a, L, T> {
     }
 }
 
-impl<'a, L, T: Scalar + ComplexField<RealField = T> + Copy> OcTreePcAdjacency<'a, L, T> {
+impl<'a, L, T: ComplexField<RealField = T> + Copy> OcTreePcAdjacency<'a, L, T> {
     pub fn adjacent_graph(&self) -> UnGraph<Vector4<T>, T> {
         let mut map = HashMap::new();
         let mut graph: UnGraph<Vector4<T>, T> = UnGraph::default();

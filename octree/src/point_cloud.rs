@@ -3,7 +3,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use nalgebra::{ComplexField, Scalar, Vector4};
+use nalgebra::{ComplexField, RealField, Scalar, Vector4};
 use num::{Float, ToPrimitive};
 use pcc_common::{point_cloud::PointCloud, points::Point3Infoed};
 
@@ -33,7 +33,7 @@ pub struct CreateOptions<T> {
     pub bound: Option<(Vector4<T>, Vector4<T>)>,
 }
 
-impl<L, T: Scalar + Float + ComplexField<RealField = T>> OcTreePc<L, T> {
+impl<L, T: Float + RealField> OcTreePc<L, T> {
     pub fn new<I, F>(
         point_cloud: &PointCloud<Point3Infoed<T, I>>,
         options: CreateOptions<T>,
@@ -89,7 +89,7 @@ impl<L, T: Scalar> DerefMut for OcTreePc<L, T> {
     }
 }
 
-pub(crate) fn key_to_coords<T: Scalar + ComplexField<RealField = T>>(
+pub(crate) fn key_to_coords<T: ComplexField<RealField = T>>(
     key: &[usize; 3],
     mul: T,
     add: &Vector4<T>,
@@ -105,7 +105,7 @@ pub(crate) fn key_to_coords<T: Scalar + ComplexField<RealField = T>>(
     result
 }
 
-pub(crate) fn coords_to_key<T: Scalar + ComplexField<RealField = T> + ToPrimitive>(
+pub(crate) fn coords_to_key<T: ComplexField<RealField = T> + ToPrimitive>(
     coords: &Vector4<T>,
     mul: T,
     add: &Vector4<T>,
@@ -115,21 +115,21 @@ pub(crate) fn coords_to_key<T: Scalar + ComplexField<RealField = T> + ToPrimitiv
     array::from_fn(|_| iter.next().unwrap())
 }
 
-impl<L, T: Scalar + ComplexField<RealField = T> + Copy> OcTreePc<L, T> {
+impl<L, T: ComplexField<RealField = T> + Copy> OcTreePc<L, T> {
     pub fn key_to_coords(&self, key: &[usize; 3]) -> Vector4<T> {
         assert!(key.iter().all(|&v| v <= self.inner.max_key()));
         key_to_coords(key, self.mul, &self.add)
     }
 }
 
-impl<L, T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialOrd> OcTreePc<L, T> {
+impl<L, T: RealField + ToPrimitive + Copy> OcTreePc<L, T> {
     pub fn coords_to_key(&self, coords: &Vector4<T>) -> [usize; 3] {
         assert!(&self.bound.0 <= coords && coords <= &self.bound.1);
         coords_to_key(coords, self.mul, &self.add)
     }
 }
 
-impl<L, T: Scalar + ComplexField<RealField = T> + Copy> OcTreePc<L, T> {
+impl<L, T: ComplexField<RealField = T> + Copy> OcTreePc<L, T> {
     pub fn side(&self, depth: usize) -> T {
         self.mul * T::from_usize((self.inner.max_key() + 1) >> depth).unwrap()
     }

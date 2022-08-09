@@ -14,7 +14,7 @@ pub struct Point3Infoed<T: Scalar, I> {
     pub extra: I,
 }
 
-impl<T: Scalar + ComplexField<RealField = T>, I: Centroid> Centroid for Point3Infoed<T, I> {
+impl<T: ComplexField<RealField = T>, I: Centroid> Centroid for Point3Infoed<T, I> {
     type Accumulator = (<Vector4<T> as Centroid>::Accumulator, I::Accumulator);
 
     fn accumulate(&self, accum: &mut Self::Accumulator) {
@@ -45,7 +45,7 @@ impl<T: Scalar + Default, I: Default> Default for Point3Infoed<T, I> {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T>, I> Point3Infoed<T, I> {
+impl<T: ComplexField<RealField = T>, I> Point3Infoed<T, I> {
     pub fn is_finite(&self) -> bool {
         self.coords.x.is_finite() && self.coords.y.is_finite() && self.coords.z.is_finite()
     }
@@ -59,7 +59,7 @@ pub struct PointInfoHsv<T: Scalar> {
     pub v: T,
 }
 
-impl<T: Scalar + ComplexField<RealField = T>> Centroid for PointInfoHsv<T> {
+impl<T: ComplexField<RealField = T>> Centroid for PointInfoHsv<T> {
     type Accumulator = Self;
 
     fn accumulate(&self, other: &mut Self) {
@@ -84,7 +84,7 @@ pub struct PointInfoIntensity<T: Scalar> {
     pub intensity: T,
 }
 
-impl<T: Scalar + ComplexField<RealField = T>> Centroid for PointInfoIntensity<T> {
+impl<T: ComplexField<RealField = T>> Centroid for PointInfoIntensity<T> {
     type Accumulator = Self;
 
     fn accumulate(&self, other: &mut Self) {
@@ -159,7 +159,7 @@ pub struct PointInfoNormal<T: Scalar> {
     pub curvature: T,
 }
 
-impl<T: Scalar + ComplexField<RealField = T>> Centroid for PointInfoNormal<T> {
+impl<T: ComplexField<RealField = T>> Centroid for PointInfoNormal<T> {
     type Accumulator = Self;
     fn accumulate(&self, other: &mut Self) {
         other.normal += &self.normal;

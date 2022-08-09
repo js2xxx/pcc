@@ -5,7 +5,7 @@ use std::{
     ops::{Deref, Index, IndexMut},
 };
 
-use nalgebra::{ClosedSub, ComplexField, Matrix3, SVector, Scalar, Vector4};
+use nalgebra::{ClosedSub, ComplexField, Matrix3, RealField, SVector, Scalar, Vector4};
 
 use self::transforms::Transform;
 use crate::points::{Centroid, Point3Infoed};
@@ -106,7 +106,7 @@ impl<T> PointCloud<T> {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T>, I> PointCloud<Point3Infoed<T, I>> {
+impl<T: ComplexField<RealField = T>, I> PointCloud<Point3Infoed<T, I>> {
     pub fn try_from_vec(
         storage: Vec<Point3Infoed<T, I>>,
         width: usize,
@@ -124,7 +124,7 @@ impl<T: Scalar + ComplexField<RealField = T>, I> PointCloud<Point3Infoed<T, I>> 
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T>, I: Debug> PointCloud<Point3Infoed<T, I>> {
+impl<T: ComplexField<RealField = T>, I: Debug> PointCloud<Point3Infoed<T, I>> {
     pub fn from_vec(storage: Vec<Point3Infoed<T, I>>, width: usize) -> Self {
         PointCloud::try_from_vec(storage, width)
             .expect("The length of the vector must be divisible by width")
@@ -137,7 +137,7 @@ impl<T: Scalar, I> Default for PointCloud<Point3Infoed<T, I>> {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + Default, I> PointCloud<Point3Infoed<T, I>> {
+impl<T: ComplexField<RealField = T> + Default, I> PointCloud<Point3Infoed<T, I>> {
     pub fn centroid_coords(&self) -> (Option<Vector4<T>>, usize) {
         let (acc, num) = if self.bounded {
             self.storage
@@ -166,7 +166,7 @@ impl<T: Scalar + ComplexField<RealField = T> + Default, I> PointCloud<Point3Info
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + Centroid + Default, I: Centroid>
+impl<T: ComplexField<RealField = T> + Centroid + Default, I: Centroid>
     PointCloud<Point3Infoed<T, I>>
 where
     T::Accumulator: Default,
@@ -192,7 +192,7 @@ where
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + Default, I> PointCloud<Point3Infoed<T, I>> {
+impl<T: ComplexField<RealField = T> + Default, I> PointCloud<Point3Infoed<T, I>> {
     /// Note: The result of this function is not normalized (descaled by the
     /// calculated point count); if wanted, use `cov_matrix_norm` instead.
     pub fn cov_matrix(&self, centroid: &Vector4<T>) -> (Option<Matrix3<T>>, usize) {
@@ -326,9 +326,7 @@ impl<T: Scalar + Default + ComplexField<RealField = T>, I> PointCloud<Point3Info
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + Default, I: Clone + Default>
-    PointCloud<Point3Infoed<T, I>>
-{
+impl<T: ComplexField<RealField = T> + Default, I: Clone + Default> PointCloud<Point3Infoed<T, I>> {
     pub fn transform<Z: Transform<T>>(&self, z: &Z, out: &mut Self) {
         out.storage
             .resize_with(self.storage.len(), Default::default);
@@ -363,7 +361,7 @@ impl<T: Scalar + ClosedSub, I: Clone> PointCloud<Point3Infoed<T, I>> {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + PartialOrd, I> PointCloud<Point3Infoed<T, I>> {
+impl<T: RealField, I> PointCloud<Point3Infoed<T, I>> {
     pub fn box_select(&self, min: &Vector4<T>, max: &Vector4<T>) -> Vec<usize> {
         let mut ret = Vec::with_capacity(self.storage.len());
 
@@ -389,7 +387,7 @@ impl<T: Scalar + ComplexField<RealField = T> + PartialOrd, I> PointCloud<Point3I
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + PartialOrd, I> PointCloud<Point3Infoed<T, I>> {
+impl<T: RealField, I> PointCloud<Point3Infoed<T, I>> {
     /// Note: Points that are not finite (infinite, NaN, etc) are not considered
     /// into calculations.
     pub fn finite_bound(&self) -> Option<(Vector4<T>, Vector4<T>)> {
@@ -413,7 +411,7 @@ impl<T: Scalar + ComplexField<RealField = T> + PartialOrd, I> PointCloud<Point3I
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + PartialOrd, I> PointCloud<Point3Infoed<T, I>> {
+impl<T: RealField, I> PointCloud<Point3Infoed<T, I>> {
     pub fn max_distance(&self, pivot: &Vector4<T>) -> Option<(T, Vector4<T>)> {
         let pivot = pivot.xyz();
 

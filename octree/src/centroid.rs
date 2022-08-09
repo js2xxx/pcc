@@ -1,6 +1,6 @@
 use std::{iter::Sum, ops::Add};
 
-use nalgebra::{ClosedAdd, ComplexField, Scalar, Vector4};
+use nalgebra::{ClosedAdd, ComplexField, RealField, Scalar, Vector4};
 use num::{Float, ToPrimitive};
 use pcc_common::{point_cloud::PointCloud, points::Point3Infoed};
 
@@ -12,7 +12,7 @@ struct Leaf<T: Scalar> {
     count: usize,
 }
 
-impl<T: Scalar + ComplexField<RealField = T>> Leaf<T> {
+impl<T: ComplexField<RealField = T>> Leaf<T> {
     fn consume(self) -> Vector4<T> {
         self.sum.unscale(T::from_usize(self.count).unwrap())
     }
@@ -57,7 +57,7 @@ impl<T: Scalar + num::Zero> Default for OcTreePcCentroid<T> {
     }
 }
 
-impl<T: Scalar + Float + ComplexField<RealField = T>> OcTreePcCentroid<T> {
+impl<T: Float + RealField> OcTreePcCentroid<T> {
     pub fn from_point_cloud<I>(
         point_cloud: &PointCloud<Point3Infoed<T, I>>,
         options: CreateOptions<T>,
@@ -75,9 +75,7 @@ impl<T: Scalar + Float + ComplexField<RealField = T>> OcTreePcCentroid<T> {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive + Copy + PartialOrd>
-    OcTreePcCentroid<T>
-{
+impl<T: RealField + ToPrimitive + Copy> OcTreePcCentroid<T> {
     pub fn add_coords(&mut self, coords: &Vector4<T>) {
         let key = self.inner.coords_to_key(coords);
         let leaf = self.inner.get_or_insert_with(&key, Leaf::default);

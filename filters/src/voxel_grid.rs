@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use nalgebra::{ComplexField, Scalar, Vector4};
+use nalgebra::{RealField, Scalar, Vector4};
 use num::ToPrimitive;
 use pcc_common::{
     filter::ApproxFilter,
@@ -10,7 +10,7 @@ use pcc_common::{
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct VoxelGrid<T: Scalar> {
-    grid_unit: Vector4<T>,
+    pub grid_unit: Vector4<T>,
 }
 
 impl<T: Scalar> VoxelGrid<T> {
@@ -19,10 +19,8 @@ impl<T: Scalar> VoxelGrid<T> {
     }
 }
 
-impl<
-        T: Scalar + ComplexField<RealField = T> + PartialOrd + ToPrimitive + Centroid + Default,
-        I: std::fmt::Debug + Default + Centroid,
-    > ApproxFilter<PointCloud<Point3Infoed<T, I>>> for VoxelGrid<T>
+impl<T: RealField + ToPrimitive + Centroid + Default, I: std::fmt::Debug + Default + Centroid>
+    ApproxFilter<PointCloud<Point3Infoed<T, I>>> for VoxelGrid<T>
 where
     <I as Centroid>::Accumulator: Default,
 {
@@ -85,7 +83,7 @@ where
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct HashVoxelGrid<T: Scalar> {
-    grid_unit: Vector4<T>,
+    pub grid_unit: Vector4<T>,
 }
 
 impl<T: Scalar> HashVoxelGrid<T> {
@@ -94,10 +92,8 @@ impl<T: Scalar> HashVoxelGrid<T> {
     }
 }
 
-impl<
-        T: Scalar + ComplexField<RealField = T> + PartialOrd + ToPrimitive + Centroid + Default,
-        I: std::fmt::Debug + Default + Centroid,
-    > ApproxFilter<PointCloud<Point3Infoed<T, I>>> for HashVoxelGrid<T>
+impl<T: RealField + ToPrimitive + Centroid + Default, I: std::fmt::Debug + Default + Centroid>
+    ApproxFilter<PointCloud<Point3Infoed<T, I>>> for HashVoxelGrid<T>
 where
     <I as Centroid>::Accumulator: Default,
 {

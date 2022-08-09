@@ -1,4 +1,4 @@
-use nalgebra::{ComplexField, Scalar, Vector4};
+use nalgebra::{ComplexField, RealField, Scalar, Vector4};
 use num::ToPrimitive;
 use sample_consensus::{Estimator, Model};
 
@@ -13,7 +13,7 @@ pub struct Cylinder<T: Scalar> {
     pub height: T,
 }
 
-impl<T: Scalar + ComplexField<RealField = T>> Cylinder<T> {
+impl<T: ComplexField<RealField = T>> Cylinder<T> {
     pub fn top_circle(&self) -> Circle<T> {
         let diff = self
             .circle
@@ -37,7 +37,7 @@ impl<T: Scalar + ComplexField<RealField = T>> Cylinder<T> {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + PartialOrd> Cylinder<T> {
+impl<T: RealField> Cylinder<T> {
     pub fn distance(&self, point: &Vector4<T>) -> T {
         let top_circle = self.top_circle();
 
@@ -57,9 +57,7 @@ impl<T: Scalar + ComplexField<RealField = T> + PartialOrd> Cylinder<T> {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive + PartialOrd> Model<Vector4<T>>
-    for Cylinder<T>
-{
+impl<T: RealField + ToPrimitive> Model<Vector4<T>> for Cylinder<T> {
     fn residual(&self, data: &Vector4<T>) -> f64 {
         self.distance(data).to_f64().unwrap()
     }
@@ -68,7 +66,7 @@ impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive + PartialOrd> Model<V
 pub struct CylinderEstimator;
 
 impl CylinderEstimator {
-    fn try_make<T: Scalar + ComplexField<RealField = T> + PartialOrd>(
+    fn try_make<T: RealField>(
         ca: &Vector4<T>,
         cb: &Vector4<T>,
         cc: &Vector4<T>,
@@ -86,9 +84,7 @@ impl CylinderEstimator {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + ToPrimitive + PartialOrd> Estimator<Vector4<T>>
-    for CylinderEstimator
-{
+impl<T: RealField + ToPrimitive> Estimator<Vector4<T>> for CylinderEstimator {
     type Model = Cylinder<T>;
 
     type ModelIter = Vec<Cylinder<T>>;
