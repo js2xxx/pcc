@@ -1,6 +1,9 @@
 use nalgebra::{ComplexField, Scalar, Vector4};
 use num::ToPrimitive;
-use pcc_common::{point_cloud::PointCloud, points::Point3Infoed};
+use pcc_common::{
+    point_cloud::PointCloud,
+    points::{Centroid, Point3Infoed},
+};
 
 pub struct VoxelGrid<T: Scalar> {
     grid_unit: Vector4<T>,
@@ -12,11 +15,16 @@ impl<T: Scalar> VoxelGrid<T> {
     }
 }
 
-impl<T: Scalar + ComplexField<RealField = T> + PartialOrd + ToPrimitive> VoxelGrid<T> {
-    pub fn filter<I: std::fmt::Debug + Default>(
+impl<T: Scalar + ComplexField<RealField = T> + PartialOrd + ToPrimitive + Centroid + Default>
+    VoxelGrid<T>
+{
+    pub fn filter<I: std::fmt::Debug + Default + Centroid>(
         &self,
         point_cloud: &PointCloud<Point3Infoed<T, I>>,
-    ) -> PointCloud<Point3Infoed<T, I>> {
+    ) -> PointCloud<Point3Infoed<T, I>>
+    where
+        <I as Centroid>::Accumulator: Default,
+    {
         let (min, _) = match point_cloud.finite_bound() {
             Some(bound) => bound,
             None => return PointCloud::new(),
@@ -31,7 +39,7 @@ impl<T: Scalar + ComplexField<RealField = T> + PartialOrd + ToPrimitive> VoxelGr
                     let index = (coords - &min)
                         .component_div(&self.grid_unit)
                         .map(|x| x.floor().to_usize().unwrap());
-                    (*index.xyz().as_ref(), coords)
+                    (*index.xyz().as_ref(), point)
                 })
                 .collect::<Vec<_>>()
         } else {
@@ -41,39 +49,30 @@ impl<T: Scalar + ComplexField<RealField = T> + PartialOrd + ToPrimitive> VoxelGr
                     let index = (coords - &min)
                         .component_div(&self.grid_unit)
                         .map(|x| x.floor().to_usize().unwrap());
-                    (*index.xyz().as_ref(), coords)
+                    (*index.xyz().as_ref(), point)
                 })
                 .collect::<Vec<_>>()
         };
 
         index_point.sort_by(|(i1, _), (i2, _)| i1.cmp(i2));
 
-        let mut temp_vec = Vector4::zeros();
-        let mut temp_num = 0;
+        let mut centroid_builder = Centroid::default_builder();
         let mut last_index = [0; 3];
         let mut storage = Vec::with_capacity(index_point.len() / 3);
 
         for (index, coords) in index_point {
             if index != last_index {
                 last_index = index;
-                let centroid = temp_vec.unscale(T::from_usize(temp_num).unwrap());
-                storage.push(Point3Infoed {
-                    coords: centroid,
-                    extra: Default::default(),
-                });
+                let centroid = centroid_builder.compute().unwrap();
+                storage.push(centroid);
 
-                temp_vec = Vector4::zeros();
-                temp_num = 0;
+                centroid_builder = Centroid::default_builder();
             }
 
-            temp_vec += coords;
-            temp_num += 1;
+            centroid_builder.accumulate(coords);
         }
-        let centroid = temp_vec.unscale(T::from_usize(temp_num).unwrap());
-        storage.push(Point3Infoed {
-            coords: centroid,
-            extra: Default::default(),
-        });
+        let centroid = centroid_builder.compute().unwrap();
+        storage.push(centroid);
 
         PointCloud::from_vec(storage, 1)
     }
