@@ -1,4 +1,4 @@
-use nalgebra::{ComplexField, Scalar, Vector4};
+use nalgebra::{ComplexField, RealField, Scalar, Vector4};
 use num::ToPrimitive;
 use sample_consensus::{Estimator, Model};
 
@@ -8,6 +8,14 @@ use crate::base::SacModel;
 pub struct Plane<T: Scalar> {
     pub coords: Vector4<T>,
     pub normal: Vector4<T>,
+}
+
+impl<T: RealField> Plane<T> {
+    pub fn same_side_with_normal(&self, coords: &Vector4<T>) -> bool {
+        let side = (coords - self.coords.clone()).xyz();
+        let dot = side.dot(&self.normal.xyz());
+        dot >= T::zero()
+    }
 }
 
 impl<T: ComplexField<RealField = T>> Plane<T> {
@@ -44,6 +52,28 @@ impl<T: ComplexField<RealField = T> + ToPrimitive> SacModel<Vector4<T>> for Plan
 
 pub struct PlaneEstimator;
 
+impl PlaneEstimator {
+    pub fn make<T: ComplexField<RealField = T>>(
+        a: &Vector4<T>,
+        b: &Vector4<T>,
+        c: &Vector4<T>,
+    ) -> Plane<T> {
+        let xa = (a - b).xyz();
+        let xb = (a - c).xyz();
+        let normal = xa.cross(&xb);
+
+        Plane {
+            coords: a.clone(),
+            normal: Vector4::from([
+                normal.x.clone(),
+                normal.y.clone(),
+                normal.z.clone(),
+                T::zero(),
+            ]),
+        }
+    }
+}
+
 impl<T: ComplexField<RealField = T> + ToPrimitive> Estimator<Vector4<T>> for PlaneEstimator {
     type Model = Plane<T>;
 
@@ -56,21 +86,7 @@ impl<T: ComplexField<RealField = T> + ToPrimitive> Estimator<Vector4<T>> for Pla
         I: Iterator<Item = Vector4<T>> + Clone,
     {
         match (data.next(), data.next(), data.next()) {
-            (Some(a), Some(b), Some(c)) => {
-                let xa = (b - &a).xyz();
-                let xb = (c - &a).xyz();
-                let normal = xa.cross(&xb);
-
-                Some(Plane {
-                    coords: a,
-                    normal: Vector4::from([
-                        normal.x.clone(),
-                        normal.y.clone(),
-                        normal.z.clone(),
-                        T::zero(),
-                    ]),
-                })
-            }
+            (Some(a), Some(b), Some(c)) => Some(Self::make(&a, &b, &c)),
             _ => None,
         }
     }
