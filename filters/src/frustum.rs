@@ -10,7 +10,9 @@ use pcc_sac::{Plane, PlaneEstimator};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct FrustumCulling<T: RealField> {
+    /// The value must be greater than zero and less than PI / 2 in radians.
     pub vertical_fov: T,
+    /// The value must be greater than zero and less than PI / 2 in radians.
     pub horizontal_fov: T,
     pub near_distance: T,
     pub far_distance: T,
@@ -29,10 +31,19 @@ impl<T: RealField> FrustumCulling<T> {
     /// NOTE: All the normal vectors of returned planes point to the inside of
     /// the frustum.
     pub fn compute_planes(&self) -> [Plane<T>; 6] {
-        assert!(-T::one() <= self.horizontal_roi_min && self.horizontal_roi_min <= T::one());
-        assert!(-T::one() <= self.horizontal_roi_max && self.horizontal_roi_max <= T::one());
-        assert!(-T::one() <= self.vertical_roi_min && self.vertical_roi_min <= T::one());
-        assert!(-T::one() <= self.vertical_roi_max && self.vertical_roi_min <= T::one());
+        assert!(T::zero() < self.horizontal_fov && self.horizontal_fov < T::frac_pi_2());
+        assert!(T::zero() < self.vertical_fov && self.vertical_fov < T::frac_pi_2());
+        assert!(T::zero() < self.near_distance && self.near_distance < self.far_distance);
+        assert!(
+            -T::one() <= self.horizontal_roi_min
+                && self.horizontal_roi_min < self.horizontal_roi_max
+                && self.horizontal_roi_max <= T::one()
+        );
+        assert!(
+            -T::one() <= self.vertical_roi_min
+                && self.vertical_roi_min < self.vertical_roi_max
+                && self.vertical_roi_min <= T::one()
+        );
 
         let near_center = matrix![self.near_distance.clone(); T::zero(); T::zero()];
         let far_center = matrix![self.far_distance.clone(); T::zero(); T::zero()];
