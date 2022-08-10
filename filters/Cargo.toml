@@ -10,3 +10,4 @@ pcc-kdtree = {path = "../kdtree"}
 # External crates
 nalgebra = "0"
 num = "0"
+rand = "0"
