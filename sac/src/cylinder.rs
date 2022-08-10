@@ -3,8 +3,9 @@ use num::ToPrimitive;
 use sample_consensus::{Estimator, Model};
 
 use crate::{
+    base::SacModel,
     circle::{Circle, CircleEstimator},
-    line::Line,
+    line::{Line, Stick},
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -26,14 +27,14 @@ impl<T: ComplexField<RealField = T>> Cylinder<T> {
         }
     }
 
-    pub fn generatrix(&self, point: &Vector4<T>) -> Line<T> {
-        Line {
+    pub fn generatrix(&self, point: &Vector4<T>) -> Stick<T> {
+        Stick(Line {
             coords: self.circle.target_radius(point),
             direction: self
                 .circle
                 .normal
                 .scale(self.height.clone() / self.circle.normal.norm()),
-        }
+        })
     }
 }
 
@@ -48,7 +49,7 @@ impl<T: RealField> Cylinder<T> {
             ret = d1
         }
 
-        let d2 = self.generatrix(point).stick_distance(point);
+        let d2 = self.generatrix(point).distance(point);
         if ret > d2 {
             ret = d2
         }
@@ -60,6 +61,28 @@ impl<T: RealField> Cylinder<T> {
 impl<T: RealField + ToPrimitive> Model<Vector4<T>> for Cylinder<T> {
     fn residual(&self, data: &Vector4<T>) -> f64 {
         self.distance(data).to_f64().unwrap()
+    }
+}
+
+impl<T: RealField + ToPrimitive> SacModel<Vector4<T>> for Cylinder<T> {
+    fn project(&self, coords: &Vector4<T>) -> Vector4<T> {
+        let top_circle = self.top_circle();
+        let (circle, circle_distance) = {
+            let d1 = self.circle.distance(coords);
+            let d2 = top_circle.distance(coords);
+            if d1 < d2 {
+                (&self.circle, d1)
+            } else {
+                (&top_circle, d2)
+            }
+        };
+
+        let generatrix = self.generatrix(coords);
+        if circle_distance >= generatrix.distance(coords) {
+            circle.project(coords)
+        } else {
+            generatrix.project(coords)
+        }
     }
 }
 

@@ -2,7 +2,7 @@ use nalgebra::{matrix, ComplexField, RealField, Scalar, Vector3, Vector4};
 use num::ToPrimitive;
 use sample_consensus::{Estimator, Model};
 
-use crate::{line::Line, plane::Plane};
+use crate::{base::SacModel, line::Line, plane::Plane};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Circle<T: Scalar> {
@@ -34,9 +34,9 @@ impl<T: ComplexField<RealField = T>> Circle<T> {
 
         // TODO: Check if `normal` is colinear with `delta`.
         let plane = delta.cross(&normal);
-        let direction = normal.cross(&plane);
-        let target = direction.scale(self.radius.clone() / direction.norm());
-        matrix![target.x.clone(); target.y.clone(); target.z.clone(); T::zero()]
+        let direction = normal.cross(&plane).normalize();
+        let target = direction.scale(self.radius.clone());
+        target.insert_row(3, T::zero())
     }
 
     pub fn circumference_distance(&self, point: &Vector4<T>) -> T {
@@ -48,20 +48,28 @@ impl<T: ComplexField<RealField = T>> Circle<T> {
 
 impl<T: RealField> Circle<T> {
     pub fn distance(&self, point: &Vector4<T>) -> T {
-        let mut ret = self.circumference_distance(point);
         if self.axis().distance(point) <= self.radius {
-            let plane_distance = self.plane().distance(point);
-            if ret > plane_distance {
-                ret = plane_distance
-            }
+            self.plane().distance(point)
+        } else {
+            self.circumference_distance(point)
         }
-        ret
     }
 }
 
 impl<T: RealField + ToPrimitive> Model<Vector4<T>> for Circle<T> {
     fn residual(&self, data: &Vector4<T>) -> f64 {
         self.distance(data).to_f64().unwrap()
+    }
+}
+
+impl<T: RealField + ToPrimitive> SacModel<Vector4<T>> for Circle<T> {
+    fn project(&self, coords: &Vector4<T>) -> Vector4<T> {
+        if self.axis().distance(coords) <= self.radius {
+            self.plane().project(coords)
+        } else {
+            let target = self.target_radius(coords);
+            target + &self.center
+        }
     }
 }
 

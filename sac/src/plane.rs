@@ -2,6 +2,8 @@ use nalgebra::{ComplexField, Scalar, Vector4};
 use num::ToPrimitive;
 use sample_consensus::{Estimator, Model};
 
+use crate::base::SacModel;
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Plane<T: Scalar> {
     pub coords: Vector4<T>,
@@ -9,10 +11,14 @@ pub struct Plane<T: Scalar> {
 }
 
 impl<T: ComplexField<RealField = T>> Plane<T> {
-    pub fn distance(&self, point: &Vector4<T>) -> T {
+    pub fn distance_directed(&self, point: &Vector4<T>) -> T {
         let side = (point - self.coords.clone()).xyz();
         let dot = side.dot(&self.normal.xyz());
         dot / self.normal.xyz().norm()
+    }
+
+    pub fn distance(&self, point: &Vector4<T>) -> T {
+        self.distance_directed(point).abs()
     }
 
     pub fn distance_squared(&self, point: &Vector4<T>) -> T {
@@ -24,7 +30,15 @@ impl<T: ComplexField<RealField = T>> Plane<T> {
 
 impl<T: ComplexField<RealField = T> + ToPrimitive> Model<Vector4<T>> for Plane<T> {
     fn residual(&self, data: &Vector4<T>) -> f64 {
-        self.distance(data).to_f64().unwrap()
+        self.distance_directed(data).to_f64().unwrap()
+    }
+}
+
+impl<T: ComplexField<RealField = T> + ToPrimitive> SacModel<Vector4<T>> for Plane<T> {
+    fn project(&self, coords: &Vector4<T>) -> Vector4<T> {
+        let distance = self.distance_directed(coords);
+        let direction = self.normal.normalize();
+        coords - direction * distance
     }
 }
 

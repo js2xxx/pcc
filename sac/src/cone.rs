@@ -3,8 +3,9 @@ use num::ToPrimitive;
 use sample_consensus::{Estimator, Model};
 
 use crate::{
+    base::SacModel,
     circle::{Circle, CircleEstimator},
-    line::{Line, LineEstimator},
+    line::{LineEstimator, Stick},
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -23,10 +24,10 @@ impl<T: ComplexField<RealField = T>> Cone<T> {
         &self.circle.center + diff
     }
 
-    pub fn generatrix(&self, point: &Vector4<T>) -> Line<T> {
+    pub fn generatrix(&self, point: &Vector4<T>) -> Stick<T> {
         let a = self.circle.target_radius(point) + &self.circle.center;
         let b = self.top_point();
-        LineEstimator::make(&a, &b)
+        Stick(LineEstimator::make(&a, &b))
     }
 }
 
@@ -42,7 +43,7 @@ impl<T: RealField> Cone<T> {
             ret = d1
         }
 
-        let d2 = generatrix.stick_distance(point);
+        let d2 = generatrix.distance(point);
         if ret > d2 {
             ret = d2
         }
@@ -54,6 +55,32 @@ impl<T: RealField> Cone<T> {
 impl<T: RealField + ToPrimitive> Model<Vector4<T>> for Cone<T> {
     fn residual(&self, data: &Vector4<T>) -> f64 {
         self.distance(data).to_f64().unwrap()
+    }
+}
+
+impl<T: RealField + ToPrimitive> SacModel<Vector4<T>> for Cone<T> {
+    fn project(&self, coords: &Vector4<T>) -> Vector4<T> {
+        let top_point = self.top_point();
+        let (choose_point, distance) = {
+            let dc = self.circle.distance(coords);
+            let dp = (coords - &top_point).xyz().norm();
+            if dc < dp {
+                (false, dc)
+            } else {
+                (true, dp)
+            }
+        };
+
+        let generatrix = self.generatrix(coords);
+        if distance >= generatrix.distance(coords) {
+            if choose_point {
+                top_point
+            } else {
+                self.circle.project(coords)
+            }
+        } else {
+            generatrix.project(coords)
+        }
     }
 }
 

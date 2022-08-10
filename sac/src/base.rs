@@ -3,7 +3,7 @@ mod arrsac;
 pub use arrsac::Arrsac;
 use nalgebra::{Scalar, Vector4};
 use pcc_common::{point_cloud::PointCloud, points::Point3Infoed};
-use sample_consensus::{Consensus, Estimator};
+use sample_consensus::{Consensus, Estimator, Model};
 
 pub struct PcSac<'a, P, C> {
     point_cloud: &'a PointCloud<P>,
@@ -29,4 +29,8 @@ impl<'a, T: Scalar, I, C> PcSac<'a, Point3Infoed<T, I>, C> {
             self.point_cloud.iter().map(|point| point.coords.clone()),
         )
     }
+}
+
+pub trait SacModel<Data>: Model<Data> {
+    fn project(&self, coords: &Data) -> Data;
 }

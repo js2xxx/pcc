@@ -2,6 +2,8 @@ use nalgebra::{matrix, ComplexField, Scalar, Vector3, Vector4};
 use num::ToPrimitive;
 use sample_consensus::{Estimator, Model};
 
+use crate::base::SacModel;
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Sphere<T: Scalar> {
     pub coords: Vector4<T>,
@@ -10,14 +12,26 @@ pub struct Sphere<T: Scalar> {
 
 impl<T: ComplexField<RealField = T>> Sphere<T> {
     pub fn distance(&self, point: &Vector4<T>) -> T {
+        self.distance_directed(point).abs()
+    }
+
+    pub fn distance_directed(&self, point: &Vector4<T>) -> T {
         let radius = (point - &self.coords).xyz().norm();
-        (radius - self.radius.clone()).abs()
+        radius - self.radius.clone()
     }
 }
 
 impl<T: ComplexField<RealField = T> + ToPrimitive> Model<Vector4<T>> for Sphere<T> {
     fn residual(&self, data: &Vector4<T>) -> f64 {
         self.distance(data).to_f64().unwrap()
+    }
+}
+
+impl<T: ComplexField<RealField = T> + ToPrimitive> SacModel<Vector4<T>> for Sphere<T> {
+    fn project(&self, coords: &Vector4<T>) -> Vector4<T> {
+        let distance = self.distance_directed(coords);
+        let direction = (coords - &self.coords).normalize();
+        coords - direction * distance
     }
 }
 
