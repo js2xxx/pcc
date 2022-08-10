@@ -20,7 +20,7 @@ impl<T: Scalar, M: SacModel<Vector4<T>>> InlierProjection<T, M> {
     }
 }
 
-impl<T: ComplexField<RealField = T>, M: SacModel<Vector4<T>>, I: Clone + Debug>
+impl<T: ComplexField, M: SacModel<Vector4<T>>, I: Clone + Debug>
     ApproxFilter<PointCloud<Point3Infoed<T, I>>> for InlierProjection<T, M>
 {
     fn filter(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> PointCloud<Point3Infoed<T, I>> {

@@ -1,4 +1,4 @@
-use nalgebra::{matrix, ComplexField, Scalar, Vector3, Vector4};
+use nalgebra::{matrix, RealField, Scalar, Vector3, Vector4};
 use num::ToPrimitive;
 use sample_consensus::{Estimator, Model};
 
@@ -10,7 +10,7 @@ pub struct Sphere<T: Scalar> {
     pub radius: T,
 }
 
-impl<T: ComplexField<RealField = T>> Sphere<T> {
+impl<T: RealField> Sphere<T> {
     pub fn distance(&self, point: &Vector4<T>) -> T {
         self.distance_directed(point).abs()
     }
@@ -21,13 +21,13 @@ impl<T: ComplexField<RealField = T>> Sphere<T> {
     }
 }
 
-impl<T: ComplexField<RealField = T> + ToPrimitive> Model<Vector4<T>> for Sphere<T> {
+impl<T: RealField + ToPrimitive> Model<Vector4<T>> for Sphere<T> {
     fn residual(&self, data: &Vector4<T>) -> f64 {
         self.distance(data).to_f64().unwrap()
     }
 }
 
-impl<T: ComplexField<RealField = T> + ToPrimitive> SacModel<Vector4<T>> for Sphere<T> {
+impl<T: RealField + ToPrimitive> SacModel<Vector4<T>> for Sphere<T> {
     fn project(&self, coords: &Vector4<T>) -> Vector4<T> {
         let distance = self.distance_directed(coords);
         let direction = (coords - &self.coords).normalize();
@@ -37,7 +37,7 @@ impl<T: ComplexField<RealField = T> + ToPrimitive> SacModel<Vector4<T>> for Sphe
 
 pub struct SphereEstimator;
 
-impl<T: ComplexField<RealField = T> + ToPrimitive> Estimator<Vector4<T>> for SphereEstimator {
+impl<T: RealField + ToPrimitive> Estimator<Vector4<T>> for SphereEstimator {
     type Model = Sphere<T>;
 
     type ModelIter = Option<Sphere<T>>;

@@ -94,7 +94,7 @@ impl<L, T: Scalar> DerefMut for OcTreePc<L, T> {
     }
 }
 
-pub(crate) fn key_to_coords<T: ComplexField<RealField = T>>(
+pub(crate) fn key_to_coords<T: ComplexField>(
     key: &[usize; 3],
     mul: T,
     add: &Vector4<T>,
@@ -105,22 +105,22 @@ pub(crate) fn key_to_coords<T: ComplexField<RealField = T>>(
         T::from_usize(key[2]).unwrap(),
         T::zero(),
     ]);
-    let mut result = key.scale(mul) + add;
+    let mut result = key * mul + add;
     result.w = T::one();
     result
 }
 
-pub(crate) fn coords_to_key<T: ComplexField<RealField = T> + ToPrimitive>(
+pub(crate) fn coords_to_key<T: ComplexField + ToPrimitive>(
     coords: &Vector4<T>,
     mul: T,
     add: &Vector4<T>,
 ) -> [usize; 3] {
-    let key = (coords - add).scale(mul);
+    let key = (coords - add) * mul;
     let mut iter = key.into_iter().filter_map(|v| v.to_usize());
     array::from_fn(|_| iter.next().unwrap())
 }
 
-impl<L, T: ComplexField<RealField = T> + Copy> OcTreePc<L, T> {
+impl<L, T: ComplexField + Copy> OcTreePc<L, T> {
     pub fn key_to_coords(&self, key: &[usize; 3]) -> Vector4<T> {
         assert!(key.iter().all(|&v| v <= self.inner.max_key()));
         key_to_coords(key, self.mul, &self.add)
@@ -134,7 +134,7 @@ impl<L, T: RealField + ToPrimitive + Copy> OcTreePc<L, T> {
     }
 }
 
-impl<L, T: ComplexField<RealField = T> + Copy> OcTreePc<L, T> {
+impl<L, T: ComplexField + Copy> OcTreePc<L, T> {
     pub fn side(&self, depth: usize) -> T {
         self.mul * T::from_usize((self.inner.max_key() + 1) >> depth).unwrap()
     }

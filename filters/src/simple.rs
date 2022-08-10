@@ -38,8 +38,8 @@ impl<'a, T: Clone> Filter<[T]> for Simple<'a, T> {
     }
 }
 
-impl<'a, T: ComplexField<RealField = T>, I: std::fmt::Debug + Clone>
-    ApproxFilter<PointCloud<Point3Infoed<T, I>>> for Simple<'a, Point3Infoed<T, I>>
+impl<'a, T: ComplexField, I: std::fmt::Debug + Clone> ApproxFilter<PointCloud<Point3Infoed<T, I>>>
+    for Simple<'a, Point3Infoed<T, I>>
 {
     fn filter(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> PointCloud<Point3Infoed<T, I>> {
         let mut storage = Vec::from(&**input);

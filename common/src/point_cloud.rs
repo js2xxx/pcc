@@ -36,10 +36,11 @@ impl<T> PointCloud<T> {
         self.storage
     }
 
-    pub fn reinterpret(&mut self, width: usize) {
-        assert!(width > 0);
-        assert_eq!(self.storage.len() % width, 0);
-        self.width = width;
+    /// # Safety
+    ///
+    /// The width and boundedness of the point cloud must be valid.
+    pub unsafe fn storage(&mut self) -> &mut Vec<T> {
+        &mut self.storage
     }
 }
 
@@ -106,7 +107,35 @@ impl<T> PointCloud<T> {
     }
 }
 
-impl<T: ComplexField<RealField = T>, I> PointCloud<Point3Infoed<T, I>> {
+impl<T: Clone> PointCloud<T> {
+    pub fn transpose(&self) -> Self {
+        let mut other = Self::new();
+        self.transpose_into(&mut other);
+        other
+    }
+
+    pub fn transpose_into(&self, other: &mut Self) {
+        other.storage.clear();
+        other.storage.reserve(self.storage.len());
+
+        let width = self.width;
+        unsafe {
+            let space = other.storage.spare_capacity_mut();
+
+            for (index, obj) in self.storage.iter().enumerate() {
+                let (x, y) = (index % width, index / width);
+                space[x * width + y].write(obj.clone());
+            }
+
+            other.storage.set_len(other.storage.capacity());
+        }
+
+        other.width = self.height();
+        other.bounded = self.bounded;
+    }
+}
+
+impl<T: ComplexField, I> PointCloud<Point3Infoed<T, I>> {
     pub fn try_from_vec(
         storage: Vec<Point3Infoed<T, I>>,
         width: usize,
@@ -122,9 +151,16 @@ impl<T: ComplexField<RealField = T>, I> PointCloud<Point3Infoed<T, I>> {
             Err(storage)
         }
     }
+
+    pub fn reinterpret(&mut self, width: usize) {
+        assert!(width > 0);
+        assert_eq!(self.storage.len() % width, 0);
+        self.width = width;
+        self.bounded = self.storage.iter().all(|p| p.is_finite());
+    }
 }
 
-impl<T: ComplexField<RealField = T>, I: Debug> PointCloud<Point3Infoed<T, I>> {
+impl<T: ComplexField, I: Debug> PointCloud<Point3Infoed<T, I>> {
     pub fn from_vec(storage: Vec<Point3Infoed<T, I>>, width: usize) -> Self {
         PointCloud::try_from_vec(storage, width)
             .expect("The length of the vector must be divisible by width")
@@ -137,7 +173,7 @@ impl<T: Scalar, I> Default for PointCloud<Point3Infoed<T, I>> {
     }
 }
 
-impl<T: ComplexField<RealField = T> + Default, I> PointCloud<Point3Infoed<T, I>> {
+impl<T: ComplexField + Default, I> PointCloud<Point3Infoed<T, I>> {
     pub fn centroid_coords(&self) -> (Option<Vector4<T>>, usize) {
         let (acc, num) = if self.bounded {
             self.storage
@@ -158,7 +194,7 @@ impl<T: ComplexField<RealField = T> + Default, I> PointCloud<Point3Infoed<T, I>>
         };
 
         let ret = (num > 0).then(|| {
-            let mut ret = acc.unscale(T::from_usize(num).unwrap());
+            let mut ret = acc / T::from_usize(num).unwrap();
             ret.w = T::one();
             ret
         });
@@ -166,8 +202,7 @@ impl<T: ComplexField<RealField = T> + Default, I> PointCloud<Point3Infoed<T, I>>
     }
 }
 
-impl<T: ComplexField<RealField = T> + Centroid + Default, I: Centroid>
-    PointCloud<Point3Infoed<T, I>>
+impl<T: ComplexField + Centroid + Default, I: Centroid> PointCloud<Point3Infoed<T, I>>
 where
     T::Accumulator: Default,
     I::Accumulator: Default,
@@ -192,7 +227,7 @@ where
     }
 }
 
-impl<T: ComplexField<RealField = T> + Default, I> PointCloud<Point3Infoed<T, I>> {
+impl<T: ComplexField + Default, I> PointCloud<Point3Infoed<T, I>> {
     /// Note: The result of this function is not normalized (descaled by the
     /// calculated point count); if wanted, use `cov_matrix_norm` instead.
     pub fn cov_matrix(&self, centroid: &Vector4<T>) -> (Option<Matrix3<T>>, usize) {
@@ -202,7 +237,7 @@ impl<T: ComplexField<RealField = T> + Default, I> PointCloud<Point3Infoed<T, I>>
             acc.m22 += d.y.clone() * d.y.clone();
             acc.m23 += d.y.clone() * d.z.clone();
             acc.m33 += d.z.clone() * d.z.clone();
-            let d = d.scale(d.x.clone());
+            let d = &d * d.x.clone();
             acc.m11 += d.x.clone();
             acc.m12 += d.y.clone();
             acc.m13 += d.z.clone();
@@ -241,13 +276,13 @@ impl<T: ComplexField<RealField = T> + Default, I> PointCloud<Point3Infoed<T, I>>
 
     pub fn cov_matrix_norm(&self, centroid: &Vector4<T>) -> (Option<Matrix3<T>>, usize) {
         match self.cov_matrix(centroid) {
-            (Some(ret), num) => (Some(ret.unscale(T::from_usize(num).unwrap())), num),
+            (Some(ret), num) => (Some(ret / T::from_usize(num).unwrap()), num),
             (None, num) => (None, num),
         }
     }
 }
 
-impl<T: Default + ComplexField<RealField = T>, I> PointCloud<Point3Infoed<T, I>> {
+impl<T: Default + ComplexField, I> PointCloud<Point3Infoed<T, I>> {
     #[allow(clippy::type_complexity)]
     pub fn centroid_and_cov_matrix(&self) -> (Option<(Vector4<T>, Matrix3<T>)>, usize) {
         let c = match self.storage.iter().find(|v| v.is_finite()) {
@@ -290,7 +325,7 @@ impl<T: Default + ComplexField<RealField = T>, I> PointCloud<Point3Infoed<T, I>>
         };
 
         if num > 0 {
-            let a = acc.unscale(T::from_usize(num).unwrap());
+            let a = acc / T::from_usize(num).unwrap();
             let centroid = Vector4::from([
                 a[6].clone() + c.x.clone(),
                 a[7].clone() + c.y.clone(),
@@ -326,7 +361,7 @@ impl<T: Default + ComplexField<RealField = T>, I> PointCloud<Point3Infoed<T, I>>
     }
 }
 
-impl<T: ComplexField<RealField = T> + Default, I: Clone + Default> PointCloud<Point3Infoed<T, I>> {
+impl<T: ComplexField + Default, I: Clone + Default> PointCloud<Point3Infoed<T, I>> {
     pub fn transform<Z: Transform<T>>(&self, z: &Z, out: &mut Self) {
         out.storage
             .resize_with(self.storage.len(), Default::default);

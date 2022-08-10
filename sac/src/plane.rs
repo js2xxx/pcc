@@ -1,4 +1,4 @@
-use nalgebra::{ComplexField, RealField, Scalar, Vector4};
+use nalgebra::{RealField, Scalar, Vector4};
 use num::ToPrimitive;
 use sample_consensus::{Estimator, Model};
 
@@ -18,7 +18,7 @@ impl<T: RealField> Plane<T> {
     }
 }
 
-impl<T: ComplexField<RealField = T>> Plane<T> {
+impl<T: RealField> Plane<T> {
     pub fn distance_directed(&self, point: &Vector4<T>) -> T {
         let side = (point - self.coords.clone()).xyz();
         let dot = side.dot(&self.normal.xyz());
@@ -36,13 +36,13 @@ impl<T: ComplexField<RealField = T>> Plane<T> {
     }
 }
 
-impl<T: ComplexField<RealField = T> + ToPrimitive> Model<Vector4<T>> for Plane<T> {
+impl<T: RealField + ToPrimitive> Model<Vector4<T>> for Plane<T> {
     fn residual(&self, data: &Vector4<T>) -> f64 {
         self.distance_directed(data).to_f64().unwrap()
     }
 }
 
-impl<T: ComplexField<RealField = T> + ToPrimitive> SacModel<Vector4<T>> for Plane<T> {
+impl<T: RealField + ToPrimitive> SacModel<Vector4<T>> for Plane<T> {
     fn project(&self, coords: &Vector4<T>) -> Vector4<T> {
         let distance = self.distance_directed(coords);
         let direction = self.normal.normalize();
@@ -53,11 +53,7 @@ impl<T: ComplexField<RealField = T> + ToPrimitive> SacModel<Vector4<T>> for Plan
 pub struct PlaneEstimator;
 
 impl PlaneEstimator {
-    pub fn make<T: ComplexField<RealField = T>>(
-        a: &Vector4<T>,
-        b: &Vector4<T>,
-        c: &Vector4<T>,
-    ) -> Plane<T> {
+    pub fn make<T: RealField>(a: &Vector4<T>, b: &Vector4<T>, c: &Vector4<T>) -> Plane<T> {
         let xa = (a - b).xyz();
         let xb = (a - c).xyz();
         let normal = xa.cross(&xb);
@@ -74,7 +70,7 @@ impl PlaneEstimator {
     }
 }
 
-impl<T: ComplexField<RealField = T> + ToPrimitive> Estimator<Vector4<T>> for PlaneEstimator {
+impl<T: RealField + ToPrimitive> Estimator<Vector4<T>> for PlaneEstimator {
     type Model = Plane<T>;
 
     type ModelIter = Option<Plane<T>>;
@@ -96,9 +92,7 @@ pub struct PerpendicularPlaneEstimator<T: Scalar> {
     pub normal: Vector4<T>,
 }
 
-impl<T: ComplexField<RealField = T> + ToPrimitive> Estimator<Vector4<T>>
-    for PerpendicularPlaneEstimator<T>
-{
+impl<T: RealField + ToPrimitive> Estimator<Vector4<T>> for PerpendicularPlaneEstimator<T> {
     type Model = Plane<T>;
 
     type ModelIter = Option<Plane<T>>;
@@ -120,9 +114,7 @@ pub struct ParallelPlaneEstimator<T: Scalar> {
     pub direction: Vector4<T>,
 }
 
-impl<T: ComplexField<RealField = T> + ToPrimitive> Estimator<Vector4<T>>
-    for ParallelPlaneEstimator<T>
-{
+impl<T: RealField + ToPrimitive> Estimator<Vector4<T>> for ParallelPlaneEstimator<T> {
     type Model = Plane<T>;
 
     type ModelIter = Option<Plane<T>>;

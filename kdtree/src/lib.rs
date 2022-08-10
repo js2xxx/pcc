@@ -42,7 +42,11 @@ impl<'a, T: RealField> KdTree<'a, T> {
 }
 
 impl<'a, T: RealField> KdTree<'a, T> {
-    pub fn search_typed(&self, pivot: &Vector4<T>, result: &mut impl ResultSet<Key = T, Value = usize>) {
+    pub fn search_typed(
+        &self,
+        pivot: &Vector4<T>,
+        result: &mut impl ResultSet<Key = T, Value = usize>,
+    ) {
         if let Some(root) = self.root {
             unsafe { root.as_ref() }.search(pivot, result)
         }

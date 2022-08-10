@@ -1,4 +1,4 @@
-use nalgebra::{matrix, ComplexField, RealField, Scalar, Vector3, Vector4};
+use nalgebra::{matrix, RealField, Scalar, Vector3, Vector4};
 use num::ToPrimitive;
 use sample_consensus::{Estimator, Model};
 
@@ -27,7 +27,7 @@ impl<T: Scalar> Circle<T> {
     }
 }
 
-impl<T: ComplexField<RealField = T>> Circle<T> {
+impl<T: RealField> Circle<T> {
     pub(crate) fn target_radius(&self, point: &Vector4<T>) -> Vector4<T> {
         let delta = (point - &self.center).xyz();
         let normal = self.normal.xyz();
@@ -76,11 +76,7 @@ impl<T: RealField + ToPrimitive> SacModel<Vector4<T>> for Circle<T> {
 pub struct CircleEstimator;
 
 impl CircleEstimator {
-    pub fn make<T: ComplexField<RealField = T>>(
-        a: &Vector4<T>,
-        b: &Vector4<T>,
-        c: &Vector4<T>,
-    ) -> Circle<T> {
+    pub fn make<T: RealField>(a: &Vector4<T>, b: &Vector4<T>, c: &Vector4<T>) -> Circle<T> {
         let xa = (b - a).xyz();
         let xb = (c - a).xyz();
         let normal = xa.cross(&xb);

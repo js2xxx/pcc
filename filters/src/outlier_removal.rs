@@ -159,7 +159,7 @@ impl<T: RealField> RadiusOutlierRemoval<T> {
                     }),
                     None => retainer.retain(|_| $condition().1),
                 }
-            }
+            };
         }
 
         let searcher = KdTree::new(input);

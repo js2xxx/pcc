@@ -12,9 +12,9 @@ struct Leaf<T: Scalar> {
     count: usize,
 }
 
-impl<T: ComplexField<RealField = T>> Leaf<T> {
+impl<T: ComplexField> Leaf<T> {
     fn consume(self) -> Vector4<T> {
-        self.sum.unscale(T::from_usize(self.count).unwrap())
+        self.sum / T::from_usize(self.count).unwrap()
     }
 }
 

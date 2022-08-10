@@ -1,4 +1,4 @@
-use nalgebra::{ComplexField, RealField, Scalar, Vector4};
+use nalgebra::{RealField, Scalar, Vector4};
 use num::ToPrimitive;
 use sample_consensus::{Estimator, Model};
 
@@ -14,7 +14,7 @@ pub struct Cylinder<T: Scalar> {
     pub height: T,
 }
 
-impl<T: ComplexField<RealField = T>> Cylinder<T> {
+impl<T: RealField> Cylinder<T> {
     pub fn top_circle(&self) -> Circle<T> {
         let diff = self
             .circle

@@ -1,4 +1,4 @@
-use nalgebra::{ComplexField, RealField, Scalar, Vector4};
+use nalgebra::{RealField, Scalar, Vector4};
 use num::ToPrimitive;
 use sample_consensus::{Estimator, Model};
 
@@ -14,7 +14,7 @@ pub struct Cone<T: Scalar> {
     height: T,
 }
 
-impl<T: ComplexField<RealField = T>> Cone<T> {
+impl<T: RealField> Cone<T> {
     pub fn top_point(&self) -> Vector4<T> {
         let diff = self
             .circle

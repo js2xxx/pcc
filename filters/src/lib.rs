@@ -1,5 +1,6 @@
 #![feature(map_try_insert)]
 
+pub mod convolution;
 mod crop_box;
 mod frustum;
 mod inlier_proj;

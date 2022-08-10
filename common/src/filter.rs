@@ -23,8 +23,8 @@ pub trait ApproxFilter<T> {
     fn filter(&mut self, input: &T) -> T;
 }
 
-impl<T: ComplexField<RealField = T>, I: std::fmt::Debug + Clone>
-    ApproxFilter<PointCloud<Point3Infoed<T, I>>> for [usize]
+impl<T: ComplexField, I: std::fmt::Debug + Clone> ApproxFilter<PointCloud<Point3Infoed<T, I>>>
+    for [usize]
 {
     fn filter(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> PointCloud<Point3Infoed<T, I>> {
         PointCloud::from_vec(self.iter().map(|&index| input[index].clone()).collect(), 1)
