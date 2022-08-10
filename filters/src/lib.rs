@@ -6,6 +6,7 @@ mod median;
 mod outlier_removal;
 mod random;
 mod simple;
+mod uniform_sa;
 mod voxel_grid;
 
 pub use self::{
@@ -15,5 +16,6 @@ pub use self::{
     outlier_removal::{RadiusOutlierRemoval, StatOutlierRemoval},
     random::Random,
     simple::Simple,
+    uniform_sa::UniformSampling,
     voxel_grid::{HashVoxelGrid, VoxelGrid},
 };
