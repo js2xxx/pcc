@@ -108,7 +108,7 @@ impl<T: RealField + ToPrimitive> SacModel<Vector4<T>> for Stick<T> {
 pub struct LineEstimator;
 
 impl LineEstimator {
-    pub(crate) fn make<T: ComplexField<RealField = T>>(a: &Vector4<T>, b: &Vector4<T>) -> Line<T> {
+    pub fn make<T: ComplexField<RealField = T>>(a: &Vector4<T>, b: &Vector4<T>) -> Line<T> {
         Line {
             coords: a.clone(),
             direction: b - a,

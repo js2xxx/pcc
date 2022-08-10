@@ -76,7 +76,7 @@ impl<T: RealField + ToPrimitive> SacModel<Vector4<T>> for Circle<T> {
 pub struct CircleEstimator;
 
 impl CircleEstimator {
-    pub(crate) fn make<T: ComplexField<RealField = T>>(
+    pub fn make<T: ComplexField<RealField = T>>(
         a: &Vector4<T>,
         b: &Vector4<T>,
         c: &Vector4<T>,

@@ -89,7 +89,7 @@ impl<T: RealField + ToPrimitive> SacModel<Vector4<T>> for Cylinder<T> {
 pub struct CylinderEstimator;
 
 impl CylinderEstimator {
-    fn try_make<T: RealField>(
+    pub fn try_make<T: RealField>(
         ca: &Vector4<T>,
         cb: &Vector4<T>,
         cc: &Vector4<T>,

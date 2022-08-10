@@ -87,7 +87,7 @@ impl<T: RealField + ToPrimitive> SacModel<Vector4<T>> for Cone<T> {
 pub struct ConeEstimator;
 
 impl ConeEstimator {
-    fn try_make<T: RealField>(
+    pub fn try_make<T: RealField>(
         ca: &Vector4<T>,
         cb: &Vector4<T>,
         cc: &Vector4<T>,

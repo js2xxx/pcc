@@ -1,12 +1,20 @@
 mod base;
-pub mod circle;
-pub mod cone;
-pub mod cylinder;
-pub mod line;
-pub mod plane;
-pub mod sphere;
+mod circle;
+mod cone;
+mod cylinder;
+mod line;
+mod plane;
+mod sphere;
 
-pub use self::base::{Arrsac, PcSac};
+pub use self::{
+    base::{Arrsac, PcSac, SacModel},
+    circle::{Circle, CircleEstimator},
+    cone::{Cone, ConeEstimator},
+    cylinder::{Cylinder, CylinderEstimator},
+    line::{Line, LineEstimator, ParallelLineEstimator, Stick, StickEstimator},
+    plane::{ParallelPlaneEstimator, PerpendicularPlaneEstimator, Plane, PlaneEstimator},
+    sphere::{Sphere, SphereEstimator},
+};
 
 #[cfg(test)]
 mod tests {
