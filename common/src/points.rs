@@ -1,3 +1,5 @@
+#[macro_use]
+mod macros;
 mod centroid;
 
 use std::collections::HashMap;
@@ -51,7 +53,7 @@ impl<T: ComplexField, I> Point3Infoed<T, I> {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 #[repr(align(16))]
 pub struct PointInfoHsv<T: Scalar> {
     pub h: T,
@@ -78,7 +80,7 @@ impl<T: ComplexField> Centroid for PointInfoHsv<T> {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 #[repr(align(16))]
 pub struct PointInfoIntensity<T: Scalar> {
     pub intensity: T,
@@ -99,7 +101,7 @@ impl<T: ComplexField> Centroid for PointInfoIntensity<T> {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 #[repr(align(16))]
 pub struct PointInfoLabel {
     pub label: u32,
@@ -125,7 +127,7 @@ impl Centroid for PointInfoLabel {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 #[repr(align(16))]
 pub struct PointInfoRgba {
     pub rgba: u32,
@@ -174,7 +176,7 @@ impl Centroid for PointInfoRgba {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 #[repr(align(16))]
 pub struct PointInfoNormal<T: Scalar> {
     pub normal: Vector4<T>,
@@ -196,6 +198,12 @@ impl<T: ComplexField> Centroid for PointInfoNormal<T> {
         }
     }
 }
+
+impl_pi!(PointHsv<T>:       point_hsv       => PointInfoHsv; ;      A, B, C, D, E, F, G, H, I, J, K);
+impl_pi!(PointIntensity<T>: point_intensity => PointInfoIntensity;  A; B, C, D, E, F, G, H, I, J, K);
+impl_pi!(PointLabel:        point_label     => PointInfoLabel;      A, B; C, D, E, F, G, H, I, J, K);
+impl_pi!(PointRgba:         point_rgba      => PointInfoRgba;       A, B, C; D, E, F, G, H, I, J, K);
+impl_pi!(PointNormal<T>:    point_normal    => PointInfoNormal;     A, B, C, D; E, F, G, H, I, J, K);
 
 pub type Point3H<T> = Point3Infoed<T, PointInfoHsv<T>>;
 pub type Point3I<T> = Point3Infoed<T, PointInfoIntensity<T>>;

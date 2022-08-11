@@ -1,5 +1,5 @@
 use nalgebra::{RealField, Scalar, Vector4};
-use pcc_common::points::{Point3Infoed, PointInfoRgba};
+use pcc_common::points::{Point3Infoed, PointRgba};
 
 use super::DynamicKernel;
 
@@ -57,10 +57,10 @@ impl<T: Scalar> GaussRgba<T> {
     }
 }
 
-impl<'a, T: RealField> DynamicKernel<'a, T, PointInfoRgba> for GaussRgba<T> {
-    fn convolve<Iter>(&self, data: Iter) -> Point3Infoed<T, PointInfoRgba>
+impl<'a, T: RealField, I: 'a + Default + PointRgba> DynamicKernel<'a, T, I> for GaussRgba<T> {
+    fn convolve<Iter>(&self, data: Iter) -> Point3Infoed<T, I>
     where
-        Iter: IntoIterator<Item = (&'a Point3Infoed<T, PointInfoRgba>, T)>,
+        Iter: IntoIterator<Item = (&'a Point3Infoed<T, I>, T)>,
     {
         let threshold = self.inner.stddev.clone() * self.inner.stddev_mul.clone();
         let var = self.inner.stddev.clone() * self.inner.stddev.clone();
@@ -70,7 +70,7 @@ impl<'a, T: RealField> DynamicKernel<'a, T, PointInfoRgba> for GaussRgba<T> {
             |(sum, [r, g, b, a], weight), (point, distance)| {
                 if distance <= threshold {
                     let w = (-distance / var.clone() / (T::one() + T::one())).exp();
-                    let rgba: [f32; 4] = point.extra.into();
+                    let rgba: [f32; 4] = (*point.extra.point_rgba()).into();
                     (
                         sum + &point.coords * w.clone(),
                         [r + rgba[0], g + rgba[1], b + rgba[2], a + rgba[3]],
@@ -88,7 +88,7 @@ impl<'a, T: RealField> DynamicKernel<'a, T, PointInfoRgba> for GaussRgba<T> {
             } else {
                 Vector4::zeros()
             },
-            extra: [r, g, b, a].into(),
+            extra: I::from([r, g, b, a].into()),
         }
     }
 }
