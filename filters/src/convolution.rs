@@ -1,7 +1,12 @@
 use std::fmt::Debug;
 
 use nalgebra::{ComplexField, DVector, Scalar, Vector4};
-use pcc_common::{point_cloud::PointCloud, points::Point3Infoed};
+use pcc_common::{
+    point_cloud::PointCloud,
+    points::Point3Infoed,
+    search::{SearchType, Searcher},
+};
+use rayon::{iter::ParallelIterator, prelude::IntoParallelRefIterator};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum BorderOptions {
@@ -10,21 +15,22 @@ pub enum BorderOptions {
     Repeated,
 }
 
-pub struct Fixed<T: Scalar> {
+/// This struct only processes organized point clouds (2-D indices-wise)
+pub struct Fixed2<T: Scalar> {
     pub kernel: DVector<T>,
     pub border_options: BorderOptions,
 }
 
-impl<T: Scalar> Fixed<T> {
+impl<T: Scalar> Fixed2<T> {
     pub fn new(kernel: DVector<T>, border_options: BorderOptions) -> Self {
-        Fixed {
+        Fixed2 {
             kernel,
             border_options,
         }
     }
 }
 
-impl<T: ComplexField> Fixed<T> {
+impl<T: ComplexField> Fixed2<T> {
     fn convolve_one<I: Default>(
         &self,
         points: &[Point3Infoed<T, I>],
@@ -221,5 +227,86 @@ impl<T: ComplexField> Fixed<T> {
         output.transpose_into(&mut transposed);
 
         *output = transposed;
+    }
+}
+
+pub trait DynamicKernel<T: Scalar> {
+    fn convolve<'a, P: 'a + Clone, Iter>(&self, data: Iter) -> P
+    where
+        Iter: IntoIterator<Item = (&'a P, T)>;
+}
+
+/// This struct proceesses point clouds 3-D coordinates-wise, and provides
+/// neighbors within a specific radius for each point to the kernel.
+pub struct Dynamic<T: Scalar, K, S> {
+    pub kernel: K,
+    pub searcher: S,
+    pub radius: T,
+}
+
+impl<T: Scalar, K, S> Dynamic<T, K, S> {
+    pub fn new(kernel: K, searcher: S, radius: T) -> Self {
+        Dynamic {
+            kernel,
+            searcher,
+            radius,
+        }
+    }
+}
+
+impl<'a, T: ComplexField, K, S> Dynamic<T, K, S> {
+    pub fn convolve_par<I: 'a + Send + Sync + Clone + Debug>(
+        &self,
+    ) -> PointCloud<Point3Infoed<T, I>>
+    where
+        T: Sync,
+        K: Sync + DynamicKernel<T>,
+        S: Sync + Searcher<'a, T, I>,
+    {
+        let input = self.searcher.point_cloud();
+
+        let output = { input.par_iter() }
+            .map(|point| {
+                let mut result = Vec::new();
+
+                self.searcher.search(
+                    &point.coords,
+                    SearchType::Radius(self.radius.clone()),
+                    &mut result,
+                );
+
+                self.kernel.convolve(
+                    { result.into_iter() }.map(|(index, distance)| (&input[index], distance)),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        PointCloud::from_vec(output, input.width())
+    }
+
+    pub fn convolve<I: 'a + Clone + Debug>(&self) -> PointCloud<Point3Infoed<T, I>>
+    where
+        K: DynamicKernel<T>,
+        S: Searcher<'a, T, I>,
+    {
+        let input = self.searcher.point_cloud();
+
+        let output = { input.iter() }
+            .map(|point| {
+                let mut result = Vec::new();
+
+                self.searcher.search(
+                    &point.coords,
+                    SearchType::Radius(self.radius.clone()),
+                    &mut result,
+                );
+
+                self.kernel.convolve(
+                    { result.into_iter() }.map(|(index, distance)| (&input[index], distance)),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        PointCloud::from_vec(output, input.width())
     }
 }

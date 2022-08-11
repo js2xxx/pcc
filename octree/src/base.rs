@@ -8,6 +8,9 @@ pub struct OcTree<T> {
     depth: usize,
 }
 
+unsafe impl<T: Send> Send for OcTree<T> {}
+unsafe impl<T: Sync> Sync for OcTree<T> {}
+
 impl<T> OcTree<T> {
     pub fn new(depth: usize) -> Self {
         OcTree { root: None, depth }

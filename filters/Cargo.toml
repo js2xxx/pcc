@@ -12,3 +12,4 @@ pcc-sac = {path = "../sac"}
 nalgebra = "0"
 num = "0"
 rand = "0"
+rayon = "1"
