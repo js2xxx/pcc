@@ -28,16 +28,17 @@ impl<T: ComplexField> Fixed<T> {
     fn convolve_one<I: Default>(
         &self,
         points: &[Point3Infoed<T, I>],
-        (kernel_len, start_gap, end_gap): (usize, usize, usize),
+        kernel_len: usize,
     ) -> Option<Point3Infoed<T, I>> {
-        let (sum, weight) = (0..kernel_len)
-            .zip(points.iter().skip(start_gap).rev().skip(end_gap))
-            .fold((Vector4::zeros(), T::zero()), |(sum, w), (k, point)| {
+        let (sum, weight) = (0..kernel_len).zip(points.iter().rev()).fold(
+            (Vector4::zeros(), T::zero()),
+            |(sum, w), (k, point)| {
                 (
                     sum + point.coords.clone() * self.kernel[k].clone(),
                     w + self.kernel[k].clone(),
                 )
-            });
+            },
+        );
 
         (weight != T::zero()).then(|| Point3Infoed {
             coords: sum / weight,
@@ -56,7 +57,6 @@ impl<T: ComplexField> Fixed<T> {
 
         let kernel_len = self.kernel.len();
         let start_gap = kernel_len / 2;
-        let end_gap = kernel_len - start_gap;
 
         let default = Point3Infoed {
             coords: Vector4::zeros(),
@@ -65,10 +65,10 @@ impl<T: ComplexField> Fixed<T> {
 
         for seg in (0..points.len()).step_by(seg_size) {
             storage.resize_with(seg + start_gap, || default.clone());
-            storage.resize_with(seg + seg_size - end_gap, || {
-                self.convolve_one(&points[seg..][..seg_size], (kernel_len, start_gap, end_gap))
-                    .unwrap()
-            });
+            for index in seg..=(seg + seg_size - kernel_len) {
+                let point = self.convolve_one(&points[index..][..kernel_len], kernel_len);
+                storage.push(point.unwrap());
+            }
             storage.resize_with(seg + seg_size, || default.clone())
         }
     }
@@ -84,7 +84,8 @@ impl<T: ComplexField> Fixed<T> {
 
         let kernel_len = self.kernel.len();
         let start_gap = kernel_len / 2;
-        let end_gap = kernel_len - start_gap;
+        let end_gap = kernel_len - start_gap - 1;
+        let last = seg_size - end_gap - 1;
 
         let default = Point3Infoed {
             coords: Vector4::zeros(),
@@ -93,12 +94,12 @@ impl<T: ComplexField> Fixed<T> {
 
         for seg in (0..points.len()).step_by(seg_size) {
             storage.resize_with(seg + start_gap, || default.clone());
-            storage.resize_with(seg + seg_size - end_gap, || {
-                self.convolve_one(&points[seg..][..seg_size], (kernel_len, start_gap, end_gap))
-                    .unwrap()
-            });
+            for index in seg..=(seg + seg_size - kernel_len) {
+                let point = self.convolve_one(&points[index..][..kernel_len], kernel_len);
+                storage.push(point.unwrap());
+            }
             for index in 0..end_gap {
-                let point = storage[seg + seg_size - end_gap - index - 1].clone();
+                let point = storage[seg + last - index].clone();
                 storage.push(point);
             }
             for index in 0..start_gap {
@@ -119,7 +120,7 @@ impl<T: ComplexField> Fixed<T> {
 
         let kernel_len = self.kernel.len();
         let start_gap = kernel_len / 2;
-        let end_gap = kernel_len - start_gap;
+        let last = seg_size - kernel_len + start_gap;
 
         let default = Point3Infoed {
             coords: Vector4::zeros(),
@@ -128,12 +129,12 @@ impl<T: ComplexField> Fixed<T> {
 
         for seg in (0..points.len()).step_by(seg_size) {
             storage.resize_with(seg + start_gap, || default.clone());
-            storage.resize_with(seg + seg_size - end_gap, || {
-                self.convolve_one(&points[seg..][..seg_size], (kernel_len, start_gap, end_gap))
-                    .unwrap()
-            });
+            for index in seg..=(seg + seg_size - kernel_len) {
+                let point = self.convolve_one(&points[index..][..kernel_len], kernel_len);
+                storage.push(point.unwrap());
+            }
 
-            let point = storage[seg + seg_size - end_gap - 1].clone();
+            let point = storage[seg + last].clone();
             storage.resize_with(seg + seg_size, || point.clone());
 
             let point = storage[seg + start_gap].clone();
