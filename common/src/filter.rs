@@ -30,3 +30,36 @@ impl<T: ComplexField, I: std::fmt::Debug + Clone> ApproxFilter<PointCloud<Point3
         PointCloud::from_vec(self.iter().map(|&index| input[index].clone()).collect(), 1)
     }
 }
+
+impl<T, F: FnMut(&T) -> bool> Filter<[T]> for F {
+    fn filter_indices(&mut self, input: &[T]) -> Vec<usize> {
+        let mut indices = (0..input.len()).collect::<Vec<_>>();
+        indices.retain(|&index| (self)(&input[index]));
+        indices
+    }
+
+    fn filter_all_indices(&mut self, input: &[T]) -> (Vec<usize>, Vec<usize>) {
+        let mut indices = (0..input.len()).collect::<Vec<_>>();
+        let mut removed = Vec::with_capacity(indices.len());
+        indices.retain(|&index| {
+            let ret = (self)(&input[index]);
+            if !ret {
+                removed.push(index)
+            }
+            ret
+        });
+        (indices, removed)
+    }
+}
+
+impl<T: ComplexField, I: std::fmt::Debug + Clone, F> ApproxFilter<PointCloud<Point3Infoed<T, I>>>
+    for F
+where
+    F: FnMut(&Point3Infoed<T, I>) -> bool,
+{
+    fn filter(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> PointCloud<Point3Infoed<T, I>> {
+        let mut storage = Vec::from(&**input);
+        storage.retain(|point| (self)(point));
+        PointCloud::from_vec(storage, 1)
+    }
+}
