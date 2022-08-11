@@ -1,3 +1,5 @@
+mod gauss;
+
 use std::fmt::Debug;
 
 use nalgebra::{ComplexField, DVector, Scalar, Vector4};
@@ -7,6 +9,8 @@ use pcc_common::{
     search::{SearchType, Searcher},
 };
 use rayon::{iter::ParallelIterator, prelude::IntoParallelRefIterator};
+
+pub use self::gauss::Gauss;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum BorderOptions {
@@ -231,9 +235,9 @@ impl<T: ComplexField> Fixed2<T> {
 }
 
 pub trait DynamicKernel<T: Scalar> {
-    fn convolve<'a, P: 'a + Clone, Iter>(&self, data: Iter) -> P
+    fn convolve<'a, I: 'a + Default, Iter>(&self, data: Iter) -> Point3Infoed<T, I>
     where
-        Iter: IntoIterator<Item = (&'a P, T)>;
+        Iter: IntoIterator<Item = (&'a Point3Infoed<T, I>, T)>;
 }
 
 /// This struct proceesses point clouds 3-D coordinates-wise, and provides
@@ -255,11 +259,10 @@ impl<T: Scalar, K, S> Dynamic<T, K, S> {
 }
 
 impl<'a, T: ComplexField, K, S> Dynamic<T, K, S> {
-    pub fn convolve_par<I: 'a + Send + Sync + Clone + Debug>(
-        &self,
-    ) -> PointCloud<Point3Infoed<T, I>>
+    pub fn convolve_par<I>(&self) -> PointCloud<Point3Infoed<T, I>>
     where
         T: Sync,
+        I: 'a + Send + Sync + Default + Debug,
         K: Sync + DynamicKernel<T>,
         S: Sync + Searcher<'a, T, I>,
     {
@@ -284,8 +287,9 @@ impl<'a, T: ComplexField, K, S> Dynamic<T, K, S> {
         PointCloud::from_vec(output, input.width())
     }
 
-    pub fn convolve<I: 'a + Clone + Debug>(&self) -> PointCloud<Point3Infoed<T, I>>
+    pub fn convolve<I>(&self) -> PointCloud<Point3Infoed<T, I>>
     where
+        I: 'a + Default + Debug,
         K: DynamicKernel<T>,
         S: Searcher<'a, T, I>,
     {
