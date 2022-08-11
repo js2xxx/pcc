@@ -131,6 +131,28 @@ pub struct PointInfoRgba {
     pub rgba: u32,
 }
 
+impl From<[f32; 4]> for PointInfoRgba {
+    fn from(rgba: [f32; 4]) -> Self {
+        PointInfoRgba {
+            rgba: (rgba[0]) as u32
+                | (((rgba[1]) as u32) << 8)
+                | (((rgba[2]) as u32) << 16)
+                | (((rgba[3]) as u32) << 24),
+        }
+    }
+}
+
+impl From<PointInfoRgba> for [f32; 4] {
+    fn from(info: PointInfoRgba) -> Self {
+        [
+            (info.rgba & 0xff) as f32,
+            ((info.rgba >> 8) & 0xff) as f32,
+            ((info.rgba >> 16) & 0xff) as f32,
+            (info.rgba >> 24) as f32,
+        ]
+    }
+}
+
 impl Centroid for PointInfoRgba {
     type Accumulator = [f32; 4];
 

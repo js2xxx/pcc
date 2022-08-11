@@ -10,7 +10,7 @@ use pcc_common::{
 };
 use rayon::{iter::ParallelIterator, prelude::IntoParallelRefIterator};
 
-pub use self::gauss::Gauss;
+pub use self::gauss::{Gauss, GaussRgba};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum BorderOptions {
@@ -234,8 +234,8 @@ impl<T: ComplexField> Fixed2<T> {
     }
 }
 
-pub trait DynamicKernel<T: Scalar> {
-    fn convolve<'a, I: 'a + Default, Iter>(&self, data: Iter) -> Point3Infoed<T, I>
+pub trait DynamicKernel<'a, T: Scalar, I: 'a> {
+    fn convolve<Iter>(&self, data: Iter) -> Point3Infoed<T, I>
     where
         Iter: IntoIterator<Item = (&'a Point3Infoed<T, I>, T)>;
 }
@@ -262,8 +262,8 @@ impl<'a, T: ComplexField, K, S> Dynamic<T, K, S> {
     pub fn convolve_par<I>(&self) -> PointCloud<Point3Infoed<T, I>>
     where
         T: Sync,
-        I: 'a + Send + Sync + Default + Debug,
-        K: Sync + DynamicKernel<T>,
+        I: Send + Sync + Debug + 'a,
+        K: Sync + DynamicKernel<'a, T, I>,
         S: Sync + Searcher<'a, T, I>,
     {
         let input = self.searcher.point_cloud();
@@ -289,8 +289,8 @@ impl<'a, T: ComplexField, K, S> Dynamic<T, K, S> {
 
     pub fn convolve<I>(&self) -> PointCloud<Point3Infoed<T, I>>
     where
-        I: 'a + Default + Debug,
-        K: DynamicKernel<T>,
+        I: Debug + 'a,
+        K: DynamicKernel<'a, T, I>,
         S: Searcher<'a, T, I>,
     {
         let input = self.searcher.point_cloud();
