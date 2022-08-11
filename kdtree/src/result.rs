@@ -75,7 +75,7 @@ impl<K: PartialOrd, V: PartialOrd> KnnResultSet<K, V> {
         self.data.pop().map(|node| (node.key, node.value))
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&K, &V)> + Clone {
         self.data.iter().map(|node| (&node.key, &node.value))
     }
 }
@@ -145,7 +145,7 @@ impl<K: PartialOrd, V: PartialOrd> RadiusResultSet<K, V> {
         self.data.pop().map(|node| (node.key, node.value))
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&K, &V)> + Clone {
         self.data.iter().map(|node| (&node.key, &node.value))
     }
 }
