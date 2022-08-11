@@ -70,7 +70,7 @@ impl<'a, T: RealField, I: 'a + Default + PointRgba> DynamicKernel<'a, T, I> for 
             |(sum, [r, g, b, a], weight), (point, distance)| {
                 if distance <= threshold {
                     let w = (-distance / var.clone() / (T::one() + T::one())).exp();
-                    let rgba: [f32; 4] = (*point.extra.point_rgba()).into();
+                    let rgba: [f32; 4] = (*point.extra.rgba()).into();
                     (
                         sum + &point.coords * w.clone(),
                         [r + rgba[0], g + rgba[1], b + rgba[2], a + rgba[3]],

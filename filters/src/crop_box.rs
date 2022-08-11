@@ -5,6 +5,7 @@ use pcc_common::{
     points::Point3Infoed,
 };
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct CropBox<T: RealField> {
     pub min: Vector4<T>,
     pub max: Vector4<T>,

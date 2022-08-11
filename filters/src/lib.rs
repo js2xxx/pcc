@@ -1,5 +1,6 @@
 #![feature(map_try_insert)]
 
+mod bilateral;
 pub mod convolution;
 mod crop_box;
 mod frustum;
@@ -12,6 +13,7 @@ mod uniform_sa;
 mod voxel_grid;
 
 pub use self::{
+    bilateral::Bilateral,
     crop_box::CropBox,
     frustum::FrustumCulling,
     inlier_proj::InlierProjection,

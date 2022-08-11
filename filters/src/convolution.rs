@@ -20,6 +20,7 @@ pub enum BorderOptions {
 }
 
 /// This struct only processes organized point clouds (2-D indices-wise)
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Fixed2<T: Scalar> {
     pub kernel: DVector<T>,
     pub border_options: BorderOptions,
@@ -242,6 +243,7 @@ pub trait DynamicKernel<'a, T: Scalar, I: 'a> {
 
 /// This struct proceesses point clouds 3-D coordinates-wise, and provides
 /// neighbors within a specific radius for each point to the kernel.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Dynamic<T: Scalar, K, S> {
     pub kernel: K,
     pub searcher: S,

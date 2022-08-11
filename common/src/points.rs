@@ -2,7 +2,10 @@
 mod macros;
 mod centroid;
 
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+};
 
 pub use nalgebra::Point3;
 use nalgebra::{ComplexField, Scalar, Vector4};
@@ -84,6 +87,20 @@ impl<T: ComplexField> Centroid for PointInfoHsv<T> {
 #[repr(align(16))]
 pub struct PointInfoIntensity<T: Scalar> {
     pub intensity: T,
+}
+
+impl<T: Scalar> Deref for PointInfoIntensity<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.intensity
+    }
+}
+
+impl<T: Scalar> DerefMut for PointInfoIntensity<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.intensity
+    }
 }
 
 impl<T: ComplexField> Centroid for PointInfoIntensity<T> {
@@ -199,11 +216,11 @@ impl<T: ComplexField> Centroid for PointInfoNormal<T> {
     }
 }
 
-impl_pi!(PointHsv<T>:       point_hsv       => PointInfoHsv; ;      A, B, C, D, E, F, G, H, I, J, K);
-impl_pi!(PointIntensity<T>: point_intensity => PointInfoIntensity;  A; B, C, D, E, F, G, H, I, J, K);
-impl_pi!(PointLabel:        point_label     => PointInfoLabel;      A, B; C, D, E, F, G, H, I, J, K);
-impl_pi!(PointRgba:         point_rgba      => PointInfoRgba;       A, B, C; D, E, F, G, H, I, J, K);
-impl_pi!(PointNormal<T>:    point_normal    => PointInfoNormal;     A, B, C, D; E, F, G, H, I, J, K);
+impl_pi!(PointHsv<T>:       (hsv, hsv_mut)             => PointInfoHsv; ;       A, B, C, D, E, F, G, H, I, J, K);
+impl_pi!(PointIntensity<T>: (intensity, intensity_mut) => PointInfoIntensity;   A; B, C, D, E, F, G, H, I, J, K);
+impl_pi!(PointLabel:        (label, label_mut)         => PointInfoLabel;       A, B; C, D, E, F, G, H, I, J, K);
+impl_pi!(PointRgba:         (rgba, rgba_mut)           => PointInfoRgba;        A, B, C; D, E, F, G, H, I, J, K);
+impl_pi!(PointNormal<T>:    (normal, normal_mut)       => PointInfoNormal;      A, B, C, D; E, F, G, H, I, J, K);
 
 pub type Point3H<T> = Point3Infoed<T, PointInfoHsv<T>>;
 pub type Point3I<T> = Point3Infoed<T, PointInfoIntensity<T>>;

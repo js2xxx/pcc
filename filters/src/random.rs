@@ -3,6 +3,7 @@ use std::mem;
 use pcc_common::filter::Filter;
 use rand::{rngs::ThreadRng, RngCore};
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Random<R: RngCore = ThreadRng> {
     pub rng: R,
     pub select_num: usize,

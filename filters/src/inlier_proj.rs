@@ -4,6 +4,7 @@ use nalgebra::{ComplexField, Scalar, Vector4};
 use pcc_common::{filter::ApproxFilter, point_cloud::PointCloud, points::Point3Infoed};
 use pcc_sac::SacModel;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InlierProjection<T: Scalar, M: SacModel<Vector4<T>>> {
     pub model: M,
     pub inliers: Vec<usize>,

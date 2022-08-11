@@ -8,6 +8,7 @@ use pcc_common::{
     points::Point3Infoed,
 };
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UniformSampling<T: Scalar> {
     pub grid_unit: Vector4<T>,
 }

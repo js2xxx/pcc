@@ -182,10 +182,7 @@ impl<'a, T: RealField + ToPrimitive + Copy, I> OcTreePcSearch<'a, T, I> {
 }
 
 impl<'a, T: RealField + ToPrimitive, I> OcTreePcSearch<'a, T, I> {
-    pub fn new(
-        point_cloud: &'a PointCloud<Point3Infoed<T, I>>,
-        options: CreateOptions<T>,
-    ) -> Self {
+    pub fn new(point_cloud: &'a PointCloud<Point3Infoed<T, I>>, options: CreateOptions<T>) -> Self {
         OcTreePcSearch {
             point_cloud,
             inner: OcTreePc::new(point_cloud, options, |tree, mul, add| {
@@ -202,7 +199,6 @@ impl<'a, T: RealField + ToPrimitive, I> OcTreePcSearch<'a, T, I> {
 impl<'a, T: RealField + ToPrimitive + Copy, I> pcc_common::search::Searcher<'a, T, I>
     for OcTreePcSearch<'a, T, I>
 {
-
     fn point_cloud(&self) -> &'a PointCloud<Point3Infoed<T, I>> {
         self.point_cloud
     }

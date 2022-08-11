@@ -3,6 +3,7 @@ use std::{array, fmt::Debug};
 use nalgebra::{RealField, Scalar};
 use pcc_common::{filter::ApproxFilter, point_cloud::PointCloud, points::Point3Infoed};
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Median2<T: Scalar> {
     pub window: isize,
     pub max_displacement: T,
