@@ -2,7 +2,7 @@
 
 mod bilateral;
 pub mod convolution;
-mod crop_box;
+mod crop;
 mod frustum;
 mod inlier_proj;
 mod median;
@@ -14,7 +14,7 @@ mod voxel_grid;
 
 pub use self::{
     bilateral::Bilateral,
-    crop_box::CropBox,
+    crop::CropBox,
     frustum::FrustumCulling,
     inlier_proj::InlierProjection,
     median::Median2,

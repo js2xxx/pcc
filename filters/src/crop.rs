@@ -1,9 +1,10 @@
-use nalgebra::{RealField, Rotation3, Vector4};
+use nalgebra::{RealField, Rotation3, Scalar, Vector4};
 use pcc_common::{
     filter::{ApproxFilter, Filter},
     point_cloud::PointCloud,
     points::Point3Infoed,
 };
+use pcc_sac::Plane;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct CropBox<T: RealField> {
@@ -82,6 +83,42 @@ impl<T: RealField, I: Clone + std::fmt::Debug> ApproxFilter<PointCloud<Point3Inf
 
             (self.min.xyz() <= local_coords && local_coords <= self.max.xyz()) ^ self.negative
         });
+        PointCloud::from_vec(storage, 1)
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct CropPlane<T: Scalar> {
+    pub plane: Plane<T>,
+}
+
+impl<T: RealField, I> Filter<[Point3Infoed<T, I>]> for CropPlane<T> {
+    fn filter_indices(&mut self, input: &[Point3Infoed<T, I>]) -> Vec<usize> {
+        let mut indices = (0..input.len()).collect::<Vec<_>>();
+        indices.retain(|&index| self.plane.same_side_with_normal(&input[index].coords));
+        indices
+    }
+
+    fn filter_all_indices(&mut self, input: &[Point3Infoed<T, I>]) -> (Vec<usize>, Vec<usize>) {
+        let mut indices = (0..input.len()).collect::<Vec<_>>();
+        let mut removed = Vec::with_capacity(indices.len());
+        indices.retain(|&index| {
+            let ret = self.plane.same_side_with_normal(&input[index].coords);
+            if !ret {
+                removed.push(index)
+            };
+            ret
+        });
+        (indices, removed)
+    }
+}
+
+impl<T: RealField, I: Clone + std::fmt::Debug> ApproxFilter<PointCloud<Point3Infoed<T, I>>>
+    for CropPlane<T>
+{
+    fn filter(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> PointCloud<Point3Infoed<T, I>> {
+        let mut storage = Vec::from(&**input);
+        storage.retain(|point| self.plane.same_side_with_normal(&point.coords));
         PointCloud::from_vec(storage, 1)
     }
 }
