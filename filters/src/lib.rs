@@ -9,6 +9,7 @@ mod local_max;
 mod median;
 mod outlier_removal;
 mod random;
+mod shadow_points;
 mod uniform_sa;
 mod voxel_grid;
 
@@ -21,6 +22,7 @@ pub use self::{
     median::Median2,
     outlier_removal::{RadiusOutlierRemoval, StatOutlierRemoval},
     random::Random,
+    shadow_points::ShadowPoints,
     uniform_sa::UniformSampling,
     voxel_grid::{GridMinimumZ, HashVoxelGrid, VoxelGrid},
 };
