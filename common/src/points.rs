@@ -216,17 +216,63 @@ impl<T: ComplexField> Centroid for PointInfoNormal<T> {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+#[repr(align(16))]
+pub struct PointInfoRange<T: Scalar> {
+    pub range: T,
+}
+
+impl<T: ComplexField> Centroid for PointInfoRange<T> {
+    type Accumulator = Self;
+
+    fn accumulate(&self, other: &mut Self) {
+        other.range += self.range.clone();
+    }
+
+    fn compute(accum: Self, num: usize) -> Self {
+        let num = T::from_usize(num).unwrap();
+        PointInfoRange {
+            range: accum.range / num,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+#[repr(align(16))]
+pub struct PointInfoViewpoint<T: Scalar> {
+    pub viewpoint: Vector4<T>,
+}
+
+impl<T: ComplexField> Centroid for PointInfoViewpoint<T> {
+    type Accumulator = Self;
+
+    fn accumulate(&self, other: &mut Self) {
+        other.viewpoint += &self.viewpoint;
+    }
+
+    fn compute(accum: Self, num: usize) -> Self {
+        let num = T::from_usize(num).unwrap();
+        PointInfoViewpoint {
+            viewpoint: accum.viewpoint / num,
+        }
+    }
+}
+
 impl_pi!(PointHsv<T>:       (hsv, hsv_mut)             => PointInfoHsv; ;       A, B, C, D, E, F, G, H, I, J, K);
 impl_pi!(PointIntensity<T>: (intensity, intensity_mut) => PointInfoIntensity;   A; B, C, D, E, F, G, H, I, J, K);
 impl_pi!(PointLabel:        (label, label_mut)         => PointInfoLabel;       A, B; C, D, E, F, G, H, I, J, K);
 impl_pi!(PointRgba:         (rgba, rgba_mut)           => PointInfoRgba;        A, B, C; D, E, F, G, H, I, J, K);
 impl_pi!(PointNormal<T>:    (normal, normal_mut)       => PointInfoNormal;      A, B, C, D; E, F, G, H, I, J, K);
+impl_pi!(PointRange<T>:     (range, range_mut)         => PointInfoRange;       A, B, C, D, E; F, G, H, I, J, K);
+impl_pi!(PointViewpoint<T>: (viewpoint, viewpoint_mut) => PointInfoViewpoint;   A, B, C, D, E, F; G, H, I, J, K);
 
 pub type Point3H<T> = Point3Infoed<T, PointInfoHsv<T>>;
 pub type Point3I<T> = Point3Infoed<T, PointInfoIntensity<T>>;
 pub type Point3L<T> = Point3Infoed<T, PointInfoLabel>;
 pub type Point3R<T> = Point3Infoed<T, PointInfoRgba>;
 pub type Point3N<T> = Point3Infoed<T, PointInfoNormal<T>>;
+pub type Point3Range<T> = Point3Infoed<T, PointInfoRange<T>>;
+pub type Point3V<T> = Point3Infoed<T, PointInfoViewpoint<T>>;
 pub type Point3RN<T> = Point3Infoed<T, (PointInfoRgba, PointInfoNormal<T>)>;
 pub type Point3IN<T> = Point3Infoed<T, (PointInfoIntensity<T>, PointInfoNormal<T>)>;
 pub type Point3LN<T> = Point3Infoed<T, (PointInfoLabel, PointInfoNormal<T>)>;

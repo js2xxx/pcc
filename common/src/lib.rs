@@ -6,3 +6,4 @@ pub mod filter;
 pub mod point_cloud;
 pub mod points;
 pub mod search;
+pub mod range_image;
