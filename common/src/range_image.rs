@@ -364,4 +364,45 @@ impl<T: RealField + Float> RangeImage<T> {
             ))
         .insert_row(1, T::one());
     }
+
+    pub fn integrate_far_ranges<'a, Iter>(&mut self, far_ranges: Iter)
+    where
+        Iter: Iterator<Item = &'a Vector4<T>>,
+    {
+        for coords in far_ranges {
+            if !coords.iter().all(|x| x.is_finite()) {
+                continue;
+            }
+
+            let (image, _) = point_to_image(
+                coords,
+                &self.inverse_transform,
+                &self.angular_resolution,
+                &self.image_offset,
+            );
+
+            let neighbors = {
+                let (floor, ceil) = (
+                    image.map(|x| Float::floor(x).to_usize().unwrap()),
+                    image.map(|x| Float::ceil(x).to_usize().unwrap()),
+                );
+                [
+                    (floor.x, floor.y),
+                    (floor.x, ceil.y),
+                    (ceil.x, floor.y),
+                    (ceil.x, ceil.y),
+                ]
+                .into_iter()
+            };
+            for (nx, ny) in neighbors {
+                if !self.contains_key(nx, ny) {
+                    continue;
+                }
+                let range = &mut self.point_cloud[(nx, ny)].extra.range;
+                if !range.is_finite() {
+                    *range = T::infinity()
+                }
+            }
+        }
+    }
 }
