@@ -93,6 +93,7 @@ pub struct CreateOptions<'a, T: Scalar, I> {
 }
 
 impl<T: RealField> RangeImage<T> {
+    #[inline]
     pub fn empty(angular_resolution: Vector2<T>) -> Self {
         RangeImage {
             point_cloud: PointCloud::new(),
@@ -106,6 +107,16 @@ impl<T: RealField> RangeImage<T> {
     #[inline]
     pub fn contains_key(&self, x: usize, y: usize) -> bool {
         x < self.point_cloud.width() && y < self.point_cloud.height()
+    }
+
+    #[inline]
+    pub fn sensor_pose(&self) -> Vector4<T> {
+        self.transform.matrix().column(3).into()
+    }
+
+    #[inline]
+    pub fn into_inner(ri: Self) -> PointCloud<Point3Range<T>> {
+        ri.point_cloud
     }
 }
 
@@ -403,6 +414,44 @@ impl<T: RealField + Float> RangeImage<T> {
                     *range = T::infinity()
                 }
             }
+        }
+    }
+
+    pub fn create_sub(&self, boundaries: &[usize; 4], combine_pixels: usize) -> Self {
+        let image_offset = Vector2::new(boundaries[0], boundaries[2]);
+
+        let width = boundaries[1] - image_offset.x + 1;
+        let height = boundaries[3] - image_offset.y + 1;
+        let mut storage = vec![unobserved(); width * height];
+
+        let src_base = image_offset * combine_pixels - self.image_offset;
+        for x in 0..width {
+            for y in 0..height {
+                let dst = &mut storage[y * width + x];
+                for src_x in
+                    (src_base.x + combine_pixels * x)..(src_base.x + combine_pixels * (x + 1))
+                {
+                    for src_y in
+                        (src_base.y + combine_pixels * y)..(src_base.y + combine_pixels * (y + 1))
+                    {
+                        if !self.contains_key(src_x, src_y) {
+                            continue;
+                        }
+                        let src = &self.point_cloud[(src_x, src_y)];
+                        if !src.extra.range.is_finite() || src.extra.range < dst.extra.range {
+                            *dst = *src;
+                        }
+                    }
+                }
+            }
+        }
+
+        RangeImage {
+            point_cloud: PointCloud::from_vec(storage, width),
+            transform: self.transform,
+            inverse_transform: self.inverse_transform,
+            angular_resolution: self.angular_resolution,
+            image_offset,
         }
     }
 }
