@@ -1,6 +1,6 @@
-use std::mem;
+use std::{mem, ops::Deref};
 
-use nalgebra::{Affine3, RealField, Vector2, Vector3, Vector4};
+use nalgebra::{Affine3, RealField, Scalar, Vector2, Vector3, Vector4};
 use num::{Float, ToPrimitive};
 
 use crate::{
@@ -84,160 +84,149 @@ pub fn unobserved<T: RealField + Float>() -> Point3Infoed<T, PointInfoRange<T>> 
     }
 }
 
+pub struct CreateOptions<'a, T: Scalar, I> {
+    pub point_cloud: &'a PointCloud<Point3Infoed<T, I>>,
+    pub angular_resolution: Vector2<T>,
+    pub noise: T,
+    pub min_range: T,
+    pub border_size: usize,
+}
+
 impl<T: RealField> RangeImage<T> {
+    pub fn empty(angular_resolution: Vector2<T>) -> Self {
+        RangeImage {
+            point_cloud: PointCloud::new(),
+            transform: Affine3::identity(),
+            inverse_transform: Affine3::identity(),
+            angular_resolution,
+            image_offset: Vector2::zeros(),
+        }
+    }
+
+    #[inline]
     pub fn contains_key(&self, x: usize, y: usize) -> bool {
         x < self.point_cloud.width() && y < self.point_cloud.height()
     }
 }
 
+impl<T: RealField> Deref for RangeImage<T> {
+    type Target = PointCloud<Point3Range<T>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.point_cloud
+    }
+}
+
+impl<T: RealField> From<RangeImage<T>> for PointCloud<Point3Range<T>> {
+    fn from(ri: RangeImage<T>) -> Self {
+        ri.point_cloud
+    }
+}
+
 impl<T: RealField + ToPrimitive + Float> RangeImage<T> {
     pub fn new<I>(
-        point_cloud: &PointCloud<Point3Infoed<T, I>>,
-        angular_resolution: &[T; 2],
         angle_size: &[T; 2],
         sensor_pose: Affine3<T>,
-        noise: T,
-        min_range: T,
-        border_size: usize,
+        options: &CreateOptions<T, I>,
     ) -> Self {
-        let angular_resolution = Vector2::from(*angular_resolution);
         let angle_size = Vector2::from(*angle_size);
 
-        let size = { angle_size.component_div(&angular_resolution) }
+        let size = { angle_size.component_div(&options.angular_resolution) }
             .map(|x| Float::floor(x).to_usize().unwrap());
-        let full_size = { Vector2::new(T::two_pi(), T::pi()).component_div(&angular_resolution) }
-            .map(|x| Float::floor(x).to_usize().unwrap());
+        let full_size =
+            { Vector2::new(T::two_pi(), T::pi()).component_div(&options.angular_resolution) }
+                .map(|x| Float::floor(x).to_usize().unwrap());
 
         let image_offset = (full_size - size) / 2;
 
-        let mut ri = RangeImage {
-            point_cloud: PointCloud::new(),
-            transform: sensor_pose,
-            inverse_transform: sensor_pose.inverse(),
-            angular_resolution,
-            image_offset,
-        };
-
-        let boundaries = ri.init(
-            point_cloud.iter().map(|point| &point.coords),
-            size[0],
-            size[1],
-            noise,
-            min_range,
-        );
-        ri.crop(border_size, &boundaries);
-
-        for x in 0..ri.point_cloud.width() {
-            for y in 0..ri.point_cloud.height() {
-                ri.calculate_at(x, y);
-            }
-        }
-
-        ri
+        Self::new_inner(sensor_pose, image_offset, size, options)
     }
 
     pub fn within_sphere<I>(
-        point_cloud: &PointCloud<Point3Infoed<T, I>>,
-        angular_resolution: &[T; 2],
         &(center, radius): &(Vector4<T>, T),
         sensor_pose: Affine3<T>,
-        noise: T,
-        min_range: T,
-        border_size: usize,
+        options: &CreateOptions<T, I>,
     ) -> Self {
         let norm = (center - sensor_pose.matrix().column(3)).norm();
         if norm < radius {
-            return Self::new(
-                point_cloud,
-                angular_resolution,
-                &[T::pi(), T::frac_pi_2()],
-                sensor_pose,
-                noise,
-                min_range,
-                border_size,
-            );
+            return Self::new(&[T::pi(), T::frac_pi_2()], sensor_pose, options);
         }
 
         let max_size = Float::asin(radius / norm) * (T::one() + T::one());
-        let xradius = Float::ceil(max_size / angular_resolution[0] / (T::one() + T::one()))
-            .to_usize()
-            .unwrap();
-        let yradius = Float::ceil(max_size / angular_resolution[1] / (T::one() + T::one()))
-            .to_usize()
-            .unwrap();
-        let width = 2 * xradius;
-        let height = 2 * yradius;
 
-        let angular_resolution = Vector2::from(*angular_resolution);
+        let radius = options.angular_resolution.map(|r| {
+            Float::ceil(max_size / r / (T::one() + T::one()))
+                .to_usize()
+                .unwrap()
+        });
+        let size = radius * 2;
+
         let inverse_transform = sensor_pose.inverse();
         let (center, _) = point_to_image(
             &center,
             &inverse_transform,
-            &angular_resolution,
+            &options.angular_resolution,
             &Vector2::zeros(),
         );
 
-        let mut ri = RangeImage {
-            point_cloud: PointCloud::new(),
-            transform: sensor_pose,
-            inverse_transform,
-            angular_resolution,
-            image_offset: Vector2::new(
-                center.x.to_usize().unwrap().saturating_sub(xradius),
-                center.y.to_usize().unwrap().saturating_sub(yradius),
-            ),
-        };
-
-        let boundaries = ri.init(
-            point_cloud.iter().map(|point| &point.coords),
-            width,
-            height,
-            noise,
-            min_range,
-        );
-        ri.crop(border_size, &boundaries);
-
-        for x in 0..ri.point_cloud.width() {
-            for y in 0..ri.point_cloud.height() {
-                ri.calculate_at(x, y);
-            }
-        }
-
-        ri
+        let image_offset = center.zip_map(&radius, |center, radius| {
+            center.to_usize().unwrap().saturating_sub(radius)
+        });
+        Self::new_inner(sensor_pose, image_offset, size, options)
     }
 
     pub fn with_viewpoint<I: PointViewpoint<T> + Centroid>(
-        point_cloud: &PointCloud<Point3Infoed<T, I>>,
-        angular_resolution: &[T; 2],
         angle_size: &[T; 2],
-        noise: T,
-        min_range: T,
-        border_size: usize,
+        options: &CreateOptions<T, I>,
     ) -> Self
     where
         T: Centroid + Default,
         T::Accumulator: Default,
         I::Accumulator: Default,
     {
-        let viewpoint = { point_cloud.centroid().0.unwrap() }
+        let viewpoint = { options.point_cloud.centroid().0.unwrap() }
             .extra
             .viewpoint()
             .viewpoint;
         let mut sensor_pose = Affine3::identity();
         *sensor_pose.matrix_mut_unchecked().column_mut(3) = *viewpoint;
 
-        Self::new(
-            point_cloud,
-            angular_resolution,
-            angle_size,
-            sensor_pose,
-            noise,
-            min_range,
-            border_size,
-        )
+        Self::new(angle_size, sensor_pose, options)
     }
 
-    fn init<'a, Iter>(
+    fn new_inner<I>(
+        sensor_pose: Affine3<T>,
+        image_offset: Vector2<usize>,
+        size: Vector2<usize>,
+        options: &CreateOptions<T, I>,
+    ) -> RangeImage<T> {
+        let mut ri = RangeImage {
+            point_cloud: PointCloud::new(),
+            transform: sensor_pose,
+            inverse_transform: sensor_pose.inverse(),
+            angular_resolution: options.angular_resolution,
+            image_offset,
+        };
+
+        let boundaries = ri.proc_zbuffer(
+            options.point_cloud.iter().map(|point| &point.coords),
+            size.x,
+            size.y,
+            options.noise,
+            options.min_range,
+        );
+
+        ri.crop(options.border_size, &boundaries);
+
+        for x in 0..ri.point_cloud.width() {
+            for y in 0..ri.point_cloud.height() {
+                ri.calculate_at(x, y);
+            }
+        }
+        ri
+    }
+
+    fn proc_zbuffer<'a, Iter>(
         &mut self,
         points: Iter,
         width: usize,
