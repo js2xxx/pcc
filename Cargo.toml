@@ -5,4 +5,5 @@ members = [
   "kdtree",
   "octree",
   "sac",
+  "io",
 ]
