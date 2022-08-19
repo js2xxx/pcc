@@ -6,9 +6,7 @@ mod centroid;
 use core::fmt::Debug;
 use std::{array, collections::HashMap};
 
-use nalgebra::{
-    ComplexField, Const, SVector, Scalar, ToConst, Vector4, VectorSlice4, VectorSliceMut4,
-};
+use nalgebra::{ComplexField, RawStorage, RawStorageMut, SVector, Scalar, ToConst, Vector4};
 use num::FromPrimitive;
 use static_assertions::const_assert;
 use typenum::{Unsigned, U10, U4, U5, U8, U9};
@@ -67,10 +65,20 @@ pub trait PointRgba: Point {
     fn rgb_value(&self) -> Self::Data;
 
     fn set_rgb_value(&mut self, value: Self::Data);
+    #[inline]
+    fn with_rgb_value(mut self, value: Self::Data) -> Self {
+        self.set_rgb_value(value);
+        self
+    }
 
     fn rgba(&self) -> u32;
 
     fn set_rgba(&mut self, rgba: u32);
+    #[inline]
+    fn with_rgba(mut self, rgba: u32) -> Self {
+        self.set_rgba(rgba);
+        self
+    }
 
     #[inline]
     fn rgba_array(&self) -> [f32; 4] {
@@ -123,15 +131,23 @@ pub trait PointRgba: Point {
 }
 
 pub trait PointNormal: Point {
-    fn normal(&self) -> VectorSlice4<Self::Data, Const<1>, <Self::Dim as ToConst>::Const>;
+    fn normal(&self) -> &Vector4<Self::Data>;
 
-    fn normal_mut(
-        &mut self,
-    ) -> VectorSliceMut4<Self::Data, Const<1>, <Self::Dim as ToConst>::Const>;
+    fn normal_mut(&mut self) -> &mut Vector4<Self::Data>;
+    #[inline]
+    fn with_normal(mut self, normal: Vector4<Self::Data>) -> Self {
+        *self.normal_mut() = normal;
+        self
+    }
 
     fn curvature(&self) -> Self::Data;
 
     fn set_curvature(&mut self, curvature: Self::Data);
+    #[inline]
+    fn with_curvature(mut self, curvature: Self::Data) -> Self {
+        self.set_curvature(curvature);
+        self
+    }
 
     fn fields() -> array::IntoIter<FieldInfo, 2>;
 
@@ -161,6 +177,11 @@ pub trait PointIntensity: Point {
     fn intensity(&self) -> Self::Data;
 
     fn set_intensity(&mut self, intensity: Self::Data);
+    #[inline]
+    fn with_intensity(mut self, intensity: Self::Data) -> Self {
+        self.set_intensity(intensity);
+        self
+    }
 
     fn fields() -> array::IntoIter<FieldInfo, 1>;
 
@@ -203,6 +224,11 @@ pub trait PointLabel: Point {
     fn label(&self) -> u32;
 
     fn set_label(&mut self, label: u32);
+    #[inline]
+    fn with_label(mut self, label: u32) -> Self {
+        self.set_label(label);
+        self
+    }
 
     fn fields() -> array::IntoIter<FieldInfo, 1>;
 
@@ -228,11 +254,14 @@ pub trait PointLabel: Point {
 }
 
 pub trait PointViewpoint: Point {
-    fn viewpoint(&self) -> VectorSlice4<Self::Data, Const<1>, <Self::Dim as ToConst>::Const>;
+    fn viewpoint(&self) -> &Vector4<Self::Data>;
 
-    fn viewpoint_mut(
-        &mut self,
-    ) -> VectorSliceMut4<Self::Data, Const<1>, <Self::Dim as ToConst>::Const>;
+    fn viewpoint_mut(&mut self) -> &mut Vector4<Self::Data>;
+    #[inline]
+    fn with_viewpoint(mut self, viewpoint: Vector4<Self::Data>) -> Self {
+        *self.viewpoint_mut() = viewpoint;
+        self
+    }
 
     fn fields() -> array::IntoIter<FieldInfo, 1>;
 }
@@ -303,5 +332,36 @@ impl Centroid for Point3V {
 
     fn compute(accum: Self::Accumulator, num: usize) -> Self::Result {
         Point3(accum / (num as f32))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use nalgebra::vector;
+
+    use super::*;
+    #[test]
+    fn test_points() {
+        let point = Point3RgbaN::default()
+            .with_coords(Vector4::new(4., 3., 2., 1.))
+            .with_normal(Vector4::new(-1., -2., -3., 0.))
+            .with_curvature(-0.5)
+            .with_rgba(0xFF000000);
+
+        assert_eq!(
+            SVector::from(point),
+            vector![
+                4.,
+                3.,
+                2.,
+                1.,
+                -1.,
+                -2.,
+                -3.,
+                0.,
+                -0.5,
+                f32::from_bits(0xFF000000)
+            ]
+        );
     }
 }

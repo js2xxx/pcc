@@ -4,20 +4,24 @@ macro_rules! __define_point {
         #[repr(align(16))]
         pub struct $type(SVector<$data, { <$num>::USIZE }>);
 
+        impl From<$type> for SVector<$data, { <$num>::USIZE }> {
+            fn from(s: $type) -> Self {
+                s.0
+            }
+        }
+
         impl Point for $type {
             type Data = $data;
             type Dim = $num;
 
             #[inline]
             fn coords(&self) -> &Vector4<$data> {
-                unsafe { &*(&self.0 as *const _ as *const _) }
+                unsafe { &*(self.0.data.ptr() as *const _) }
             }
 
             #[inline]
-            fn coords_mut(
-                &mut self,
-            ) -> &mut Vector4<$data> {
-                unsafe { &mut *(&mut self.0 as *mut _ as *mut _) }
+            fn coords_mut(&mut self) -> &mut Vector4<$data> {
+                unsafe { &mut *(self.0.data.ptr_mut() as *mut _) }
             }
 
             #[inline]
@@ -69,15 +73,13 @@ macro_rules! __define_point {
     ) => {
         impl $trait for $type {
             #[inline]
-            fn $get(&self) -> VectorSlice4<$data, Const<1>, <$num as ToConst>::Const> {
-                self.0.fixed_rows($normal_index)
+            fn $get(&self) -> &Vector4<$data> {
+                unsafe { &*(self.0.fixed_rows::<4>($normal_index).data.ptr() as *const _) }
             }
 
             #[inline]
-            fn normal_mut(
-                &mut self,
-            ) -> VectorSliceMut4<$data, Const<1>, <$num as ToConst>::Const> {
-                self.0.fixed_rows_mut($normal_index)
+            fn normal_mut(&mut self) -> &mut Vector4<$data> {
+                unsafe { &mut *(self.0.fixed_rows_mut::<4>($normal_index).data.ptr_mut() as *mut _) }
             }
 
             #[inline]
@@ -162,15 +164,13 @@ macro_rules! __define_point {
     (viewpoint $get:ident: $trait:ident, $type:ident < $data:ident, $num:ident > , $index:literal) => {
         impl $trait for $type {
             #[inline]
-            fn $get(&self) -> VectorSlice4<$data, Const<1>, <$num as ToConst>::Const> {
-                self.0.fixed_rows($index)
+            fn $get(&self) -> &Vector4<$data> {
+                unsafe { &*(self.0.fixed_rows::<4>($index).data.ptr() as *const _) }
             }
 
             #[inline]
-            fn viewpoint_mut(
-                &mut self,
-            ) -> VectorSliceMut4<$data, Const<1>, <$num as ToConst>::Const> {
-                self.0.fixed_rows_mut($index)
+            fn viewpoint_mut(&mut self) -> &mut Vector4<$data>{
+                unsafe { &mut *(self.0.fixed_rows_mut::<4>($index).data.ptr_mut() as *mut _) }
             }
 
             #[inline]
