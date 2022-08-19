@@ -1,6 +1,4 @@
-use nalgebra::ComplexField;
-
-use crate::{point_cloud::PointCloud, points::Point3Infoed};
+use crate::{point::Point, point_cloud::PointCloud};
 
 /// A filter that keeps some parts of input, for example, some elements of an
 /// array, and transfers them to the output.
@@ -23,10 +21,11 @@ pub trait ApproxFilter<T> {
     fn filter(&mut self, input: &T) -> T;
 }
 
-impl<T: ComplexField, I: std::fmt::Debug + Clone> ApproxFilter<PointCloud<Point3Infoed<T, I>>>
-    for [usize]
+impl<P: Point> ApproxFilter<PointCloud<P>> for [usize]
+where
+    <P as Point>::Data: nalgebra::ComplexField,
 {
-    fn filter(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> PointCloud<Point3Infoed<T, I>> {
+    fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {
         PointCloud::from_vec(self.iter().map(|&index| input[index].clone()).collect(), 1)
     }
 }
@@ -52,12 +51,12 @@ impl<T, F: FnMut(&T) -> bool> Filter<[T]> for F {
     }
 }
 
-impl<T: ComplexField, I: std::fmt::Debug + Clone, F> ApproxFilter<PointCloud<Point3Infoed<T, I>>>
-    for F
+impl<P: Point, F> ApproxFilter<PointCloud<P>> for F
 where
-    F: FnMut(&Point3Infoed<T, I>) -> bool,
+    F: FnMut(&P) -> bool,
+    <P as Point>::Data: nalgebra::ComplexField,
 {
-    fn filter(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> PointCloud<Point3Infoed<T, I>> {
+    fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {
         let mut storage = Vec::from(&**input);
         storage.retain(|point| (self)(point));
         PointCloud::from_vec(storage, 1)

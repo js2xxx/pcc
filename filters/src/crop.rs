@@ -1,8 +1,8 @@
 use nalgebra::{RealField, Rotation3, Scalar, Vector4};
 use pcc_common::{
     filter::{ApproxFilter, Filter},
+    point::Point,
     point_cloud::PointCloud,
-    points::Point3Infoed,
 };
 use pcc_sac::Plane;
 
@@ -30,13 +30,13 @@ impl<T: RealField> CropBox<T> {
     }
 }
 
-impl<T: RealField, I> Filter<[Point3Infoed<T, I>]> for CropBox<T> {
-    fn filter_indices(&mut self, input: &[Point3Infoed<T, I>]) -> Vec<usize> {
+impl<T: RealField, P: Point<Data = T>> Filter<[P]> for CropBox<T> {
+    fn filter_indices(&mut self, input: &[P]) -> Vec<usize> {
         let center = (&self.min + &self.max).unscale(T::one() + T::one()).xyz();
 
         let mut indices = (0..input.len()).collect::<Vec<_>>();
         indices.retain(|&index| {
-            let coords = &input[index].coords.xyz();
+            let coords = &input[index].coords().xyz();
             let delta = coords - &center;
             let local_delta = self.rotation.inverse_transform_vector(&delta);
             let local_coords = local_delta + &center;
@@ -46,13 +46,13 @@ impl<T: RealField, I> Filter<[Point3Infoed<T, I>]> for CropBox<T> {
         indices
     }
 
-    fn filter_all_indices(&mut self, input: &[Point3Infoed<T, I>]) -> (Vec<usize>, Vec<usize>) {
+    fn filter_all_indices(&mut self, input: &[P]) -> (Vec<usize>, Vec<usize>) {
         let center = (&self.min + &self.max).unscale(T::one() + T::one()).xyz();
 
         let mut indices = (0..input.len()).collect::<Vec<_>>();
         let mut removed = Vec::with_capacity(indices.len());
         indices.retain(|&index| {
-            let coords = &input[index].coords.xyz();
+            let coords = &input[index].coords().xyz();
             let delta = coords - &center;
             let local_delta = self.rotation.inverse_transform_vector(&delta);
             let local_coords = local_delta + &center;
@@ -68,15 +68,13 @@ impl<T: RealField, I> Filter<[Point3Infoed<T, I>]> for CropBox<T> {
     }
 }
 
-impl<T: RealField, I: Clone + std::fmt::Debug> ApproxFilter<PointCloud<Point3Infoed<T, I>>>
-    for CropBox<T>
-{
-    fn filter(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> PointCloud<Point3Infoed<T, I>> {
+impl<T: RealField, P: Point<Data = T>> ApproxFilter<PointCloud<P>> for CropBox<T> {
+    fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {
         let center = (&self.min + &self.max).unscale(T::one() + T::one()).xyz();
 
         let mut storage = Vec::from(&**input);
         storage.retain(|point| {
-            let coords = &point.coords.xyz();
+            let coords = &point.coords().xyz();
             let delta = coords - &center;
             let local_delta = self.rotation.inverse_transform_vector(&delta);
             let local_coords = local_delta + &center;
@@ -93,25 +91,23 @@ pub struct CropPlane<T: Scalar> {
 }
 
 impl<T: RealField> CropPlane<T> {
-    fn inner<I>(&self) -> impl FnMut(&Point3Infoed<T, I>) -> bool + '_ {
-        |point| self.plane.same_side_with_normal(&point.coords)
+    fn inner<P: Point<Data = T>>(&self) -> impl FnMut(&P) -> bool + '_ {
+        |point| self.plane.same_side_with_normal(point.coords())
     }
 }
 
-impl<T: RealField, I> Filter<[Point3Infoed<T, I>]> for CropPlane<T> {
-    fn filter_indices(&mut self, input: &[Point3Infoed<T, I>]) -> Vec<usize> {
+impl<T: RealField, P: Point<Data = T>> Filter<[P]> for CropPlane<T> {
+    fn filter_indices(&mut self, input: &[P]) -> Vec<usize> {
         self.inner().filter_indices(input)
     }
 
-    fn filter_all_indices(&mut self, input: &[Point3Infoed<T, I>]) -> (Vec<usize>, Vec<usize>) {
+    fn filter_all_indices(&mut self, input: &[P]) -> (Vec<usize>, Vec<usize>) {
         self.inner().filter_all_indices(input)
     }
 }
 
-impl<T: RealField, I: Clone + std::fmt::Debug> ApproxFilter<PointCloud<Point3Infoed<T, I>>>
-    for CropPlane<T>
-{
-    fn filter(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> PointCloud<Point3Infoed<T, I>> {
+impl<T: RealField, P: Point<Data = T>> ApproxFilter<PointCloud<P>> for CropPlane<T> {
+    fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {
         self.inner().filter(input)
     }
 }

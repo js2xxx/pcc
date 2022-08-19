@@ -1,9 +1,5 @@
 use nalgebra::{RealField, Scalar};
-use pcc_common::{
-    filter::ApproxFilter,
-    point_cloud::PointCloud,
-    points::{Point3Infoed, PointIntensity},
-};
+use pcc_common::{filter::ApproxFilter, point::PointIntensity, point_cloud::PointCloud};
 use pcc_kdtree::{KdTree, RadiusResultSet};
 
 /// NOTE: This function don't modify point coordinates. Instead, it recomputes
@@ -25,19 +21,19 @@ impl<T: RealField> Bilateral<T> {
         (-x.clone() * x / ((T::one() + T::one()) * sigma.clone() * sigma)).exp()
     }
 
-    fn compute_intensity<'a, I: 'a + PointIntensity<T>, Iter>(
+    fn compute_intensity<'a, P: 'a + PointIntensity<Data = T>, Iter>(
         &self,
-        pivot: &Point3Infoed<T, I>,
+        pivot: &P,
         data: Iter,
     ) -> T
     where
-        Iter: Iterator<Item = (&'a Point3Infoed<T, I>, T)>,
+        Iter: Iterator<Item = (&'a P, T)>,
     {
         let (sum, weight) = data.fold(
             (T::zero(), T::zero()),
             |(sum, weight), (point, distance)| {
-                let intensity = (**point.extra.intensity()).clone();
-                let id = (intensity.clone() - (**pivot.extra.intensity()).clone()).abs();
+                let intensity = point.intensity();
+                let id = (intensity.clone() - pivot.intensity()).abs();
                 let w = Self::kernel(distance, self.sigma_d.clone())
                     * Self::kernel(id, self.sigma_r.clone());
 
@@ -48,21 +44,19 @@ impl<T: RealField> Bilateral<T> {
     }
 }
 
-impl<T: RealField, I: PointIntensity<T> + Clone> ApproxFilter<PointCloud<Point3Infoed<T, I>>>
-    for Bilateral<T>
-{
-    fn filter(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> PointCloud<Point3Infoed<T, I>> {
+impl<T: RealField, P: PointIntensity<Data = T>> ApproxFilter<PointCloud<P>> for Bilateral<T> {
+    fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {
         let searcher = KdTree::new(input);
 
         let mut result = RadiusResultSet::new(self.sigma_d.clone() * (T::one() + T::one()));
         let mut output = input.clone();
         unsafe {
             for point in output.storage().iter_mut() {
-                searcher.search_typed(&point.coords, &mut result);
-                **point.extra.intensity_mut() = self.compute_intensity(
+                searcher.search_typed(point.coords(), &mut result);
+                point.set_intensity(self.compute_intensity(
                     point,
                     { result.iter() }.map(|(distance, index)| (&input[*index], distance.clone())),
-                );
+                ));
             }
         }
 

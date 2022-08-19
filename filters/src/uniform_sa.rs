@@ -4,8 +4,8 @@ use nalgebra::{RealField, Scalar, Vector3, Vector4};
 use num::ToPrimitive;
 use pcc_common::{
     filter::{ApproxFilter, Filter},
+    point::Point,
     point_cloud::PointCloud,
-    points::Point3Infoed,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,11 +21,11 @@ impl<T: Scalar> UniformSampling<T> {
 
 impl<T: RealField + ToPrimitive> UniformSampling<T> {
     #[allow(clippy::type_complexity)]
-    fn filter_data<'a, I>(
+    fn filter_data<'a, P: Point<Data = T>>(
         grid_unit: &Vector4<T>,
-        input: &'a PointCloud<Point3Infoed<T, I>>,
-    ) -> Option<(Vector4<T>, Vec<([usize; 3], &'a Point3Infoed<T, I>)>)> {
-        let (min, _) = match input.finite_bound() {
+        input: &'a PointCloud<P>,
+    ) -> Option<(Vector4<T>, Vec<([usize; 3], &'a P)>)> {
+        let [min, _] = match input.finite_bound() {
             Some(bound) => bound,
             None => return None,
         };
@@ -33,7 +33,7 @@ impl<T: RealField + ToPrimitive> UniformSampling<T> {
         let mut key_point = if bounded {
             { input.iter() }
                 .map(|point| {
-                    let coords = &point.coords;
+                    let coords = point.coords();
                     let key = (coords - &min)
                         .component_div(grid_unit)
                         .map(|x| x.floor().to_usize().unwrap());
@@ -43,7 +43,7 @@ impl<T: RealField + ToPrimitive> UniformSampling<T> {
         } else {
             { input.iter().filter(|point| point.is_finite()) }
                 .map(|point| {
-                    let coords = &point.coords;
+                    let coords = point.coords();
                     let key = (coords - &min)
                         .component_div(grid_unit)
                         .map(|x| x.floor().to_usize().unwrap());
@@ -55,14 +55,14 @@ impl<T: RealField + ToPrimitive> UniformSampling<T> {
         Some((min, key_point))
     }
 
-    fn filter_inner<I, F1, F2>(
+    fn filter_inner<P: Point<Data = T>, F1, F2>(
         &self,
         min: &Vector4<T>,
-        key_point: Vec<([usize; 3], &Point3Infoed<T, I>)>,
+        key_point: Vec<([usize; 3], &P)>,
         mut push_point: F1,
         mut push_removed: F2,
     ) where
-        F1: FnMut(usize, &Point3Infoed<T, I>),
+        F1: FnMut(usize, &P),
         F2: FnMut(usize),
     {
         let get_center = |index: [usize; 3]| {
@@ -86,7 +86,7 @@ impl<T: RealField + ToPrimitive> UniformSampling<T> {
                     push_point(index, point);
                 }
             }
-            let distance = (&center - &point.coords).norm();
+            let distance = (&center - point.coords()).norm();
 
             nearest = match nearest {
                 Some((i, _, d)) if distance < d => {
@@ -102,8 +102,8 @@ impl<T: RealField + ToPrimitive> UniformSampling<T> {
     }
 }
 
-impl<T: RealField + ToPrimitive, I> Filter<PointCloud<Point3Infoed<T, I>>> for UniformSampling<T> {
-    fn filter_indices(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> Vec<usize> {
+impl<T: RealField + ToPrimitive, P: Point<Data = T>> Filter<PointCloud<P>> for UniformSampling<T> {
+    fn filter_indices(&mut self, input: &PointCloud<P>) -> Vec<usize> {
         let (min, key_point) = match Self::filter_data(&self.grid_unit, input) {
             Some(value) => value,
             None => return Vec::new(),
@@ -116,10 +116,7 @@ impl<T: RealField + ToPrimitive, I> Filter<PointCloud<Point3Infoed<T, I>>> for U
         indices
     }
 
-    fn filter_all_indices(
-        &mut self,
-        input: &PointCloud<Point3Infoed<T, I>>,
-    ) -> (Vec<usize>, Vec<usize>) {
+    fn filter_all_indices(&mut self, input: &PointCloud<P>) -> (Vec<usize>, Vec<usize>) {
         let (min, key_point) = match Self::filter_data(&self.grid_unit, input) {
             Some(value) => value,
             None => return (Vec::new(), Vec::new()),
@@ -139,10 +136,10 @@ impl<T: RealField + ToPrimitive, I> Filter<PointCloud<Point3Infoed<T, I>>> for U
     }
 }
 
-impl<T: RealField + ToPrimitive, I: Clone + Debug> ApproxFilter<PointCloud<Point3Infoed<T, I>>>
+impl<T: RealField + ToPrimitive, P: Point<Data = T>> ApproxFilter<PointCloud<P>>
     for UniformSampling<T>
 {
-    fn filter(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> PointCloud<Point3Infoed<T, I>> {
+    fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {
         let (min, key_point) = match Self::filter_data(&self.grid_unit, input) {
             Some(value) => value,
             None => return PointCloud::new(),

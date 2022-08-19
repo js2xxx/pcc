@@ -1,5 +1,5 @@
 use nalgebra::{RealField, Scalar, Vector4};
-use pcc_common::points::{Point3Infoed, PointRgba};
+use pcc_common::point::{Point, PointRgba};
 
 use super::DynamicKernel;
 
@@ -14,10 +14,10 @@ impl<T: Scalar> Gauss<T> {
     }
 }
 
-impl<'a, T: RealField, I: 'a + Default> DynamicKernel<'a, T, I> for Gauss<T> {
-    fn convolve<Iter>(&self, data: Iter) -> Point3Infoed<T, I>
+impl<'a, T: RealField, P: Point<Data = T> + 'a> DynamicKernel<'a, P> for Gauss<T> {
+    fn convolve<Iter>(&self, data: Iter) -> P
     where
-        Iter: IntoIterator<Item = (&'a Point3Infoed<T, I>, T)>,
+        Iter: IntoIterator<Item = (&'a P, T)>,
     {
         let threshold = self.stddev.clone() * self.stddev_mul.clone();
         let var = self.stddev.clone() * self.stddev.clone();
@@ -27,21 +27,18 @@ impl<'a, T: RealField, I: 'a + Default> DynamicKernel<'a, T, I> for Gauss<T> {
             |(sum, weight), (point, distance)| {
                 if distance <= threshold {
                     let w = (-distance / var.clone() / (T::one() + T::one())).exp();
-                    (sum + &point.coords * w.clone(), weight + w)
+                    (sum + point.coords() * w.clone(), weight + w)
                 } else {
                     (sum, weight)
                 }
             },
         );
 
-        Point3Infoed {
-            coords: if weight != T::zero() {
-                sum / weight
-            } else {
-                Vector4::zeros()
-            },
-            extra: Default::default(),
-        }
+        P::default().with_coords(if weight != T::zero() {
+            sum / weight
+        } else {
+            Vector4::zeros()
+        })
     }
 }
 
@@ -57,38 +54,37 @@ impl<T: Scalar> GaussRgba<T> {
     }
 }
 
-impl<'a, T: RealField, I: 'a + Default + PointRgba> DynamicKernel<'a, T, I> for GaussRgba<T> {
-    fn convolve<Iter>(&self, data: Iter) -> Point3Infoed<T, I>
+impl<'a, T: RealField, P: PointRgba<Data = T> + 'a> DynamicKernel<'a, P> for GaussRgba<T> {
+    fn convolve<Iter>(&self, data: Iter) -> P
     where
-        Iter: IntoIterator<Item = (&'a Point3Infoed<T, I>, T)>,
+        Iter: IntoIterator<Item = (&'a P, T)>,
     {
         let threshold = self.inner.stddev.clone() * self.inner.stddev_mul.clone();
         let var = self.inner.stddev.clone() * self.inner.stddev.clone();
 
-        let (sum, [r, g, b, a], weight) = data.into_iter().fold(
+        let (sum, rgba, weight) = data.into_iter().fold(
             (Vector4::zeros(), [0.; 4], T::zero()),
-            |(sum, [r, g, b, a], weight), (point, distance)| {
+            |(sum, [b, g, r, a], weight), (point, distance)| {
                 if distance <= threshold {
                     let w = (-distance / var.clone() / (T::one() + T::one())).exp();
-                    let rgba: [f32; 4] = (*point.extra.rgba()).into();
+                    let rgba = point.rgba_array();
                     (
-                        sum + &point.coords * w.clone(),
-                        [r + rgba[0], g + rgba[1], b + rgba[2], a + rgba[3]],
+                        sum + point.coords() * w.clone(),
+                        [b + rgba[0], g + rgba[1], r + rgba[2], a + rgba[3]],
                         weight + w,
                     )
                 } else {
-                    (sum, [r, g, b, a], weight)
+                    (sum, [b, g, r, a], weight)
                 }
             },
         );
 
-        Point3Infoed {
-            coords: if weight != T::zero() {
+        P::default()
+            .with_coords(if weight != T::zero() {
                 sum / weight
             } else {
                 Vector4::zeros()
-            },
-            extra: I::from([r, g, b, a].into()),
-        }
+            })
+            .with_rgba_array(&rgba)
     }
 }

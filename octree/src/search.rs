@@ -1,27 +1,38 @@
 use std::ops::Deref;
 
 use nalgebra::{RealField, Scalar, Vector4};
-use num::ToPrimitive;
-use pcc_common::{point_cloud::PointCloud, points::Point3Infoed, search::SearchType};
+use num::{One, ToPrimitive};
+use pcc_common::{point::Point, point_cloud::PointCloud, search::SearchType};
 
 use crate::{
     node::{key_child, Node},
     point_cloud::{CreateOptions, OcTreePc},
 };
 
-pub struct OcTreePcSearch<'a, T: Scalar, I> {
-    inner: OcTreePc<Vec<(usize, &'a Vector4<T>)>, T>,
-    point_cloud: &'a PointCloud<Point3Infoed<T, I>>,
+type Item<'a, T> = (usize, &'a Vector4<T>);
+
+pub struct OcTreePcSearch<'a, P: Point> {
+    inner: OcTreePc<Vec<Item<'a, P::Data>>, P::Data>,
+    point_cloud: &'a PointCloud<P>,
 }
 
-impl<'a, T: RealField + ToPrimitive + Copy, I> OcTreePcSearch<'a, T, I> {
-    fn half_diagonal(&self, depth: usize) -> T {
-        self.inner.diagonal(depth) / (T::one() + T::one())
+impl<'a, P: Point> OcTreePcSearch<'a, P>
+where
+    P::Data: RealField,
+{
+    fn half_diagonal(&self, depth: usize) -> P::Data {
+        self.inner.diagonal(depth) / (P::Data::one() + P::Data::one())
     }
 }
 
-impl<'a, T: RealField + ToPrimitive + Copy, I> OcTreePcSearch<'a, T, I> {
-    pub fn voxel_search<'b>(&'b self, pivot: &Vector4<T>) -> &'b [(usize, &'a Vector4<T>)] {
+impl<'a, P: Point> OcTreePcSearch<'a, P>
+where
+    P::Data: RealField + ToPrimitive,
+{
+    pub fn voxel_search<'b>(
+        &'b self,
+        pivot: &Vector4<P::Data>,
+    ) -> &'b [(usize, &'a Vector4<P::Data>)] {
         let key = self.inner.coords_to_key(pivot);
         self.inner.get(&key).map_or(&[], Deref::deref)
     }
@@ -33,8 +44,16 @@ struct NodeKey<'b, 'a, T: Scalar> {
     key: [usize; 3],
 }
 
-impl<'a, T: RealField + Copy + ToPrimitive, I> OcTreePcSearch<'a, T, I> {
-    pub fn knn_search(&self, pivot: &Vector4<T>, num: usize, result_set: &mut Vec<(usize, T)>) {
+impl<'a, P: Point> OcTreePcSearch<'a, P>
+where
+    P::Data: RealField + ToPrimitive,
+{
+    pub fn knn_search(
+        &self,
+        pivot: &Vector4<P::Data>,
+        num: usize,
+        result_set: &mut Vec<(usize, P::Data)>,
+    ) {
         let mut rs = Vec::new();
         if let Some(node) = self.inner.root() {
             self.knn_search_recursive(&NodeKey { node, key: [0; 3] }, pivot, num, 1, None, &mut rs);
@@ -45,13 +64,13 @@ impl<'a, T: RealField + Copy + ToPrimitive, I> OcTreePcSearch<'a, T, I> {
 
     fn knn_search_recursive(
         &self,
-        node_key: &NodeKey<'_, 'a, T>,
-        pivot: &Vector4<T>,
+        node_key: &NodeKey<'_, 'a, P::Data>,
+        pivot: &Vector4<P::Data>,
         num: usize,
         depth: usize,
-        mut min_distance: Option<T>,
-        result_set: &mut Vec<(usize, T)>,
-    ) -> Option<T> {
+        mut min_distance: Option<P::Data>,
+        result_set: &mut Vec<(usize, P::Data)>,
+    ) -> Option<P::Data> {
         let half_diagonal = self.half_diagonal(depth);
 
         let children = match node_key.node {
@@ -82,8 +101,8 @@ impl<'a, T: RealField + Copy + ToPrimitive, I> OcTreePcSearch<'a, T, I> {
         });
 
         for (child, distance) in search_heap {
-            if let Some(min_distance) = min_distance {
-                if distance > min_distance + half_diagonal {
+            if let Some(min_distance) = min_distance.clone() {
+                if distance > min_distance + half_diagonal.clone() {
                     break;
                 }
             }
@@ -100,9 +119,9 @@ impl<'a, T: RealField + Copy + ToPrimitive, I> OcTreePcSearch<'a, T, I> {
                     )
                 }
                 Node::Leaf { content } => {
-                    for &(index, &coords) in content {
+                    for &(index, coords) in content {
                         let distance = (coords - pivot).norm();
-                        if min_distance.map_or(true, |d| distance < d) {
+                        if min_distance.clone().map_or(true, |d| distance < d) {
                             result_set.push((index, distance));
                         }
                     }
@@ -114,7 +133,7 @@ impl<'a, T: RealField + Copy + ToPrimitive, I> OcTreePcSearch<'a, T, I> {
                         result_set.truncate(num);
                     }
                     if result_set.len() == num {
-                        min_distance = Some(result_set.last().unwrap().1);
+                        min_distance = Some(result_set.last().cloned().unwrap().1);
                     }
                 }
             }
@@ -124,8 +143,16 @@ impl<'a, T: RealField + Copy + ToPrimitive, I> OcTreePcSearch<'a, T, I> {
     }
 }
 
-impl<'a, T: RealField + ToPrimitive + Copy, I> OcTreePcSearch<'a, T, I> {
-    pub fn radius_search(&self, pivot: &Vector4<T>, radius: T, result_set: &mut Vec<(usize, T)>) {
+impl<'a, P: Point> OcTreePcSearch<'a, P>
+where
+    P::Data: RealField + ToPrimitive,
+{
+    pub fn radius_search(
+        &self,
+        pivot: &Vector4<P::Data>,
+        radius: P::Data,
+        result_set: &mut Vec<(usize, P::Data)>,
+    ) {
         result_set.clear();
         if let Some(node) = self.inner.root() {
             self.radius_search_recursive(
@@ -140,11 +167,11 @@ impl<'a, T: RealField + ToPrimitive + Copy, I> OcTreePcSearch<'a, T, I> {
 
     fn radius_search_recursive(
         &self,
-        node_key: &NodeKey<'_, 'a, T>,
-        pivot: &Vector4<T>,
-        radius: T,
+        node_key: &NodeKey<'_, 'a, P::Data>,
+        pivot: &Vector4<P::Data>,
+        radius: P::Data,
         depth: usize,
-        result_set: &mut Vec<(usize, T)>,
+        result_set: &mut Vec<(usize, P::Data)>,
     ) {
         let half_diagonal = self.half_diagonal(depth);
 
@@ -161,15 +188,19 @@ impl<'a, T: RealField + ToPrimitive + Copy, I> OcTreePcSearch<'a, T, I> {
                 };
                 let center = self.inner.center(&child_nk.key, depth);
                 let distance = (center - pivot).norm();
-                (distance <= radius + half_diagonal).then_some(child_nk)
+                (distance <= radius.clone() + half_diagonal.clone()).then_some(child_nk)
             })
         }) {
             match child.node {
-                Node::Branch { .. } => {
-                    self.radius_search_recursive(&child, pivot, radius, depth + 1, result_set)
-                }
+                Node::Branch { .. } => self.radius_search_recursive(
+                    &child,
+                    pivot,
+                    radius.clone(),
+                    depth + 1,
+                    result_set,
+                ),
                 Node::Leaf { content } => {
-                    for &(index, &coords) in content {
+                    for &(index, coords) in content {
                         let distance = (coords - pivot).norm();
                         if distance <= radius {
                             result_set.push((index, distance))
@@ -181,29 +212,38 @@ impl<'a, T: RealField + ToPrimitive + Copy, I> OcTreePcSearch<'a, T, I> {
     }
 }
 
-impl<'a, T: RealField + ToPrimitive, I> OcTreePcSearch<'a, T, I> {
-    pub fn new(point_cloud: &'a PointCloud<Point3Infoed<T, I>>, options: CreateOptions<T>) -> Self {
+impl<'a, P: Point> OcTreePcSearch<'a, P>
+where
+    P::Data: RealField + ToPrimitive,
+{
+    pub fn new(point_cloud: &'a PointCloud<P>, options: CreateOptions<P::Data>) -> Self {
         OcTreePcSearch {
             point_cloud,
             inner: OcTreePc::new(point_cloud, options, |tree, mul, add| {
                 for (index, point) in point_cloud.iter().enumerate() {
-                    let key = crate::point_cloud::coords_to_key(&point.coords, mul.clone(), add);
+                    let key = crate::point_cloud::coords_to_key(point.coords(), mul.clone(), add);
                     let vec = tree.get_or_insert_with(&key, Vec::new);
-                    vec.push((index, &point.coords));
+                    vec.push((index, point.coords()));
                 }
             }),
         }
     }
 }
 
-impl<'a, T: RealField + ToPrimitive + Copy, I> pcc_common::search::Searcher<'a, T, I>
-    for OcTreePcSearch<'a, T, I>
+impl<'a, P: Point> pcc_common::search::Searcher<'a, P> for OcTreePcSearch<'a, P>
+where
+    P::Data: RealField + ToPrimitive,
 {
-    fn point_cloud(&self) -> &'a PointCloud<Point3Infoed<T, I>> {
+    fn point_cloud(&self) -> &'a PointCloud<P> {
         self.point_cloud
     }
 
-    fn search(&self, pivot: &Vector4<T>, ty: SearchType<T>, result: &mut Vec<(usize, T)>) {
+    fn search(
+        &self,
+        pivot: &Vector4<P::Data>,
+        ty: SearchType<P::Data>,
+        result: &mut Vec<(usize, P::Data)>,
+    ) {
         match ty {
             SearchType::Knn(num) => self.knn_search(pivot, num, result),
             SearchType::Radius(radius) => self.radius_search(pivot, radius, result),

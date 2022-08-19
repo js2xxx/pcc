@@ -4,8 +4,8 @@ use std::fmt::Debug;
 
 use nalgebra::{ComplexField, DVector, Scalar, Vector4};
 use pcc_common::{
+    point::Point,
     point_cloud::PointCloud,
-    points::Point3Infoed,
     search::{SearchType, Searcher},
 };
 use rayon::{iter::ParallelIterator, prelude::IntoParallelRefIterator};
@@ -36,32 +36,25 @@ impl<T: Scalar> Fixed2<T> {
 }
 
 impl<T: ComplexField> Fixed2<T> {
-    fn convolve_one<I: Default>(
-        &self,
-        points: &[Point3Infoed<T, I>],
-        kernel_len: usize,
-    ) -> Option<Point3Infoed<T, I>> {
+    fn convolve_one<P: Point<Data = T>>(&self, points: &[P], kernel_len: usize) -> Option<P> {
         let (sum, weight) = (0..kernel_len).zip(points.iter().rev()).fold(
             (Vector4::zeros(), T::zero()),
             |(sum, w), (k, point)| {
                 (
-                    sum + point.coords.clone() * self.kernel[k].clone(),
+                    sum + point.coords().clone() * self.kernel[k].clone(),
                     w + self.kernel[k].clone(),
                 )
             },
         );
 
-        (weight != T::zero()).then(|| Point3Infoed {
-            coords: sum / weight,
-            extra: Default::default(),
-        })
+        (weight != T::zero()).then(|| P::default().with_coords(sum / weight))
     }
 
-    fn convolve_default<I: Default + Clone>(
+    fn convolve_default<P: Point<Data = T> + Clone>(
         &self,
-        points: &[Point3Infoed<T, I>],
+        points: &[P],
         seg_size: usize,
-        storage: &mut Vec<Point3Infoed<T, I>>,
+        storage: &mut Vec<P>,
     ) {
         storage.clear();
         storage.reserve(points.len());
@@ -69,26 +62,21 @@ impl<T: ComplexField> Fixed2<T> {
         let kernel_len = self.kernel.len();
         let start_gap = kernel_len / 2;
 
-        let default = Point3Infoed {
-            coords: Vector4::zeros(),
-            extra: Default::default(),
-        };
-
         for seg in (0..points.len()).step_by(seg_size) {
-            storage.resize_with(seg + start_gap, || default.clone());
+            storage.resize_with(seg + start_gap, Default::default);
             for index in seg..=(seg + seg_size - kernel_len) {
                 let point = self.convolve_one(&points[index..][..kernel_len], kernel_len);
                 storage.push(point.unwrap());
             }
-            storage.resize_with(seg + seg_size, || default.clone())
+            storage.resize_with(seg + seg_size, Default::default)
         }
     }
 
-    fn convolve_mirrored<I: Default + Clone>(
+    fn convolve_mirrored<P: Point<Data = T> + Clone>(
         &self,
-        points: &[Point3Infoed<T, I>],
+        points: &[P],
         seg_size: usize,
-        storage: &mut Vec<Point3Infoed<T, I>>,
+        storage: &mut Vec<P>,
     ) {
         storage.clear();
         storage.reserve(points.len());
@@ -98,13 +86,8 @@ impl<T: ComplexField> Fixed2<T> {
         let end_gap = kernel_len - start_gap - 1;
         let last = seg_size - end_gap - 1;
 
-        let default = Point3Infoed {
-            coords: Vector4::zeros(),
-            extra: Default::default(),
-        };
-
         for seg in (0..points.len()).step_by(seg_size) {
-            storage.resize_with(seg + start_gap, || default.clone());
+            storage.resize_with(seg + start_gap, Default::default);
             for index in seg..=(seg + seg_size - kernel_len) {
                 let point = self.convolve_one(&points[index..][..kernel_len], kernel_len);
                 storage.push(point.unwrap());
@@ -120,11 +103,11 @@ impl<T: ComplexField> Fixed2<T> {
         }
     }
 
-    fn convolve_repeated<I: Default + Clone>(
+    fn convolve_repeated<P: Point<Data = T> + Clone>(
         &self,
-        points: &[Point3Infoed<T, I>],
+        points: &[P],
         seg_size: usize,
-        storage: &mut Vec<Point3Infoed<T, I>>,
+        storage: &mut Vec<P>,
     ) {
         storage.clear();
         storage.reserve(points.len());
@@ -133,13 +116,8 @@ impl<T: ComplexField> Fixed2<T> {
         let start_gap = kernel_len / 2;
         let last = seg_size - kernel_len + start_gap;
 
-        let default = Point3Infoed {
-            coords: Vector4::zeros(),
-            extra: Default::default(),
-        };
-
         for seg in (0..points.len()).step_by(seg_size) {
-            storage.resize_with(seg + start_gap, || default.clone());
+            storage.resize_with(seg + start_gap, Default::default);
             for index in seg..=(seg + seg_size - kernel_len) {
                 let point = self.convolve_one(&points[index..][..kernel_len], kernel_len);
                 storage.push(point.unwrap());
@@ -155,10 +133,10 @@ impl<T: ComplexField> Fixed2<T> {
         }
     }
 
-    pub fn convolve_rows_into<I: Default + Clone + Debug>(
+    pub fn convolve_rows_into<P: Point<Data = T> + Clone + Debug>(
         &self,
-        input: &PointCloud<Point3Infoed<T, I>>,
-        output: &mut PointCloud<Point3Infoed<T, I>>,
+        input: &PointCloud<P>,
+        output: &mut PointCloud<P>,
     ) {
         let width = input.width();
         unsafe {
@@ -172,20 +150,20 @@ impl<T: ComplexField> Fixed2<T> {
         }
     }
 
-    pub fn convolve_rows<I: Default + Clone + Debug>(
+    pub fn convolve_rows<P: Point<Data = T> + Clone + Debug>(
         &self,
-        input: &PointCloud<Point3Infoed<T, I>>,
-    ) -> PointCloud<Point3Infoed<T, I>> {
+        input: &PointCloud<P>,
+    ) -> PointCloud<P> {
         let mut output = PointCloud::new();
         self.convolve_rows_into(input, &mut output);
 
         output
     }
 
-    pub fn convolve_columns_into<I: Default + Clone + Debug>(
+    pub fn convolve_columns_into<P: Point<Data = T> + Clone + Debug>(
         &self,
-        input: &PointCloud<Point3Infoed<T, I>>,
-        output: &mut PointCloud<Point3Infoed<T, I>>,
+        input: &PointCloud<P>,
+        output: &mut PointCloud<P>,
     ) {
         input.transpose_into(output);
 
@@ -193,20 +171,20 @@ impl<T: ComplexField> Fixed2<T> {
         temp.transpose_into(output);
     }
 
-    pub fn convolve_columns<I: Default + Clone + Debug>(
+    pub fn convolve_columns<P: Point<Data = T> + Clone + Debug>(
         &self,
-        input: &PointCloud<Point3Infoed<T, I>>,
-    ) -> PointCloud<Point3Infoed<T, I>> {
-        let mut ret = PointCloud::new();
-        self.convolve_columns_into(input, &mut ret);
+        input: &PointCloud<P>,
+    ) -> PointCloud<P> {
+        let mut output = PointCloud::new();
+        self.convolve_columns_into(input, &mut output);
 
-        ret
+        output
     }
 
-    pub fn convolve<I: Default + Clone + Debug>(
+    pub fn convolve<P: Point<Data = T> + Clone + Debug>(
         &self,
-        input: &PointCloud<Point3Infoed<T, I>>,
-    ) -> PointCloud<Point3Infoed<T, I>> {
+        input: &PointCloud<P>,
+    ) -> PointCloud<P> {
         let mut transposed = PointCloud::new();
 
         let mut temp = self.convolve_rows(input);
@@ -218,10 +196,10 @@ impl<T: ComplexField> Fixed2<T> {
         transposed
     }
 
-    pub fn convolve_into<I: Default + Clone + Debug>(
+    pub fn convolve_into<P: Point<Data = T> + Clone + Debug>(
         &self,
-        input: &PointCloud<Point3Infoed<T, I>>,
-        output: &mut PointCloud<Point3Infoed<T, I>>,
+        input: &PointCloud<P>,
+        output: &mut PointCloud<P>,
     ) {
         let mut transposed = PointCloud::new();
 
@@ -235,10 +213,10 @@ impl<T: ComplexField> Fixed2<T> {
     }
 }
 
-pub trait DynamicKernel<'a, T: Scalar, I: 'a> {
-    fn convolve<Iter>(&self, data: Iter) -> Point3Infoed<T, I>
+pub trait DynamicKernel<'a, P: Point + 'a> {
+    fn convolve<Iter>(&self, data: Iter) -> P
     where
-        Iter: IntoIterator<Item = (&'a Point3Infoed<T, I>, T)>;
+        Iter: IntoIterator<Item = (&'a P, P::Data)>;
 }
 
 /// This struct proceesses point clouds 3-D coordinates-wise, and provides
@@ -261,12 +239,11 @@ impl<T: Scalar, K, S> Dynamic<T, K, S> {
 }
 
 impl<'a, T: ComplexField, K, S> Dynamic<T, K, S> {
-    pub fn convolve_par<I>(&self) -> PointCloud<Point3Infoed<T, I>>
+    pub fn convolve_par<P>(&self) -> PointCloud<P>
     where
-        T: Sync,
-        I: Send + Sync + Debug + 'a,
-        K: Sync + DynamicKernel<'a, T, I>,
-        S: Sync + Searcher<'a, T, I>,
+        P: Sync + Send + Point<Data = T> + 'a,
+        K: Sync + DynamicKernel<'a, P>,
+        S: Sync + Searcher<'a, P>,
     {
         let input = self.searcher.point_cloud();
 
@@ -275,7 +252,7 @@ impl<'a, T: ComplexField, K, S> Dynamic<T, K, S> {
                 let mut result = Vec::new();
 
                 self.searcher.search(
-                    &point.coords,
+                    point.coords(),
                     SearchType::Radius(self.radius.clone()),
                     &mut result,
                 );
@@ -289,11 +266,11 @@ impl<'a, T: ComplexField, K, S> Dynamic<T, K, S> {
         PointCloud::from_vec(output, input.width())
     }
 
-    pub fn convolve<I>(&self) -> PointCloud<Point3Infoed<T, I>>
+    pub fn convolve<P>(&self) -> PointCloud<P>
     where
-        I: Debug + 'a,
-        K: DynamicKernel<'a, T, I>,
-        S: Searcher<'a, T, I>,
+        P: Point<Data = T> + 'a,
+        K: DynamicKernel<'a, P>,
+        S: Searcher<'a, P>,
     {
         let input = self.searcher.point_cloud();
 
@@ -302,7 +279,7 @@ impl<'a, T: ComplexField, K, S> Dynamic<T, K, S> {
                 let mut result = Vec::new();
 
                 self.searcher.search(
-                    &point.coords,
+                    point.coords(),
                     SearchType::Radius(self.radius.clone()),
                     &mut result,
                 );

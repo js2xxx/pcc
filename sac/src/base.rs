@@ -2,7 +2,7 @@ mod arrsac;
 
 pub use arrsac::Arrsac;
 use nalgebra::{Scalar, Vector4};
-use pcc_common::{point_cloud::PointCloud, points::Point3Infoed};
+use pcc_common::{point::Point, point_cloud::PointCloud};
 use sample_consensus::{Consensus, Estimator, Model};
 
 pub struct PcSac<'a, P, C> {
@@ -16,7 +16,7 @@ impl<'a, P, C> PcSac<'a, P, C> {
     }
 }
 
-impl<'a, T: Scalar, I, C> PcSac<'a, Point3Infoed<T, I>, C> {
+impl<'a, T: Scalar, P: Point<Data = T>, C> PcSac<'a, P, C> {
     pub fn compute<E: Estimator<Vector4<T>>>(
         &mut self,
         estimator: &E,
@@ -26,7 +26,7 @@ impl<'a, T: Scalar, I, C> PcSac<'a, Point3Infoed<T, I>, C> {
     {
         self.inner.model_inliers(
             estimator,
-            self.point_cloud.iter().map(|point| point.coords.clone()),
+            self.point_cloud.iter().map(|point| point.coords().clone()),
         )
     }
 }

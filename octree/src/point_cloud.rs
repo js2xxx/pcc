@@ -5,7 +5,7 @@ use std::{
 
 use nalgebra::{ComplexField, RealField, Scalar, Vector4};
 use num::ToPrimitive;
-use pcc_common::{point_cloud::PointCloud, points::Point3Infoed};
+use pcc_common::{point::Point, point_cloud::PointCloud};
 
 use crate::OcTree;
 
@@ -30,19 +30,19 @@ impl<L, T: Scalar + num::Zero> Default for OcTreePc<L, T> {
 
 pub struct CreateOptions<T> {
     pub resolution: T,
-    pub bound: Option<(Vector4<T>, Vector4<T>)>,
+    pub bound: Option<[Vector4<T>; 2]>,
 }
 
 impl<L, T: RealField + ToPrimitive> OcTreePc<L, T> {
-    pub fn new<I, F>(
-        point_cloud: &PointCloud<Point3Infoed<T, I>>,
+    pub fn new<F, P: Point<Data = T>>(
+        point_cloud: &PointCloud<P>,
         options: CreateOptions<T>,
         build: F,
     ) -> Self
     where
         F: FnOnce(&mut OcTree<L>, T, &Vector4<T>),
     {
-        let (min, max) = match options.bound.or_else(|| point_cloud.finite_bound()) {
+        let [min, max] = match options.bound.or_else(|| point_cloud.finite_bound()) {
             Some(bound) => bound,
             None => return Default::default(),
         };
@@ -120,23 +120,23 @@ pub(crate) fn coords_to_key<T: ComplexField + ToPrimitive>(
     array::from_fn(|_| iter.next().unwrap())
 }
 
-impl<L, T: ComplexField + Copy> OcTreePc<L, T> {
+impl<L, T: ComplexField> OcTreePc<L, T> {
     pub fn key_to_coords(&self, key: &[usize; 3]) -> Vector4<T> {
         assert!(key.iter().all(|&v| v <= self.inner.max_key()));
-        key_to_coords(key, self.mul, &self.add)
+        key_to_coords(key, self.mul.clone(), &self.add)
     }
 }
 
-impl<L, T: RealField + ToPrimitive + Copy> OcTreePc<L, T> {
+impl<L, T: RealField + ToPrimitive> OcTreePc<L, T> {
     pub fn coords_to_key(&self, coords: &Vector4<T>) -> [usize; 3] {
         assert!(&self.bound.0 <= coords && coords <= &self.bound.1);
-        coords_to_key(coords, self.mul, &self.add)
+        coords_to_key(coords, self.mul.clone(), &self.add)
     }
 }
 
-impl<L, T: ComplexField + Copy> OcTreePc<L, T> {
+impl<L, T: ComplexField> OcTreePc<L, T> {
     pub fn side(&self, depth: usize) -> T {
-        self.mul * T::from_usize((self.inner.max_key() + 1) >> depth).unwrap()
+        self.mul.clone() * T::from_usize((self.inner.max_key() + 1) >> depth).unwrap()
     }
 
     pub fn diagonal(&self, depth: usize) -> T {
@@ -146,7 +146,7 @@ impl<L, T: ComplexField + Copy> OcTreePc<L, T> {
     pub fn center(&self, key: &[usize; 3], depth: usize) -> Vector4<T> {
         let radius = self.side(depth) / (T::one() + T::one());
         let coords = self.key_to_coords(key);
-        let mut ret = coords.map(|v| v + radius);
+        let mut ret = coords.map(|v| v + radius.clone());
         ret.w = T::one();
         ret
     }

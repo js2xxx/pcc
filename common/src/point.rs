@@ -6,48 +6,52 @@ mod centroid;
 use core::fmt::Debug;
 use std::{array, collections::HashMap};
 
-use nalgebra::{ComplexField, Const, MatrixSlice, MatrixSliceMut, SVector, Scalar, Vector4};
+use nalgebra::{
+    ComplexField, Const, SVector, Scalar, ToConst, Vector4, VectorSlice4, VectorSliceMut4,
+};
 use num::FromPrimitive;
 use static_assertions::const_assert;
+use typenum::{Unsigned, U10, U4, U5, U8, U9};
 
 pub use self::{
     centroid::{Centroid, CentroidBuilder},
     info::{FieldInfo, PointFields},
 };
 
-pub trait Point: Debug + Copy + Clone + PartialEq + PartialOrd + Default {
+pub trait Point: Debug + Clone + PartialEq + PartialOrd + Default {
     type Data: Scalar;
-    const DIM: usize;
+    type Dim: Unsigned + ToConst;
 
-    fn coords(&self)
-        -> MatrixSlice<Self::Data, Const<4>, Const<1>, Const<1>, Const<{ Self::DIM }>>;
+    fn coords(&self) -> &Vector4<Self::Data>;
 
-    fn coords_mut(
-        &mut self,
-    ) -> MatrixSliceMut<Self::Data, Const<4>, Const<1>, Const<1>, Const<{ Self::DIM }>>;
+    fn coords_mut(&mut self) -> &mut Vector4<Self::Data>;
+    #[inline]
+    fn with_coords(mut self, coords: Vector4<Self::Data>) -> Self {
+        *self.coords_mut() = coords;
+        self
+    }
 
     fn as_slice(&self) -> &[Self::Data];
 
     fn as_mut_slice(&mut self) -> &mut [Self::Data];
 
-    fn with_coords(coords: &Vector4<Self::Data>) -> Self;
-
+    #[inline]
     fn na_point(&self) -> nalgebra::Point3<Self::Data>
     where
         Self::Data: ComplexField,
-        [(); Self::DIM]:,
     {
-        nalgebra::Point3::from_homogeneous(self.coords().into_owned()).unwrap()
+        nalgebra::Point3::from_homogeneous(self.coords().clone()).unwrap()
     }
 
+    #[inline]
     fn is_finite(&self) -> bool
     where
         Self::Data: ComplexField,
-        [(); Self::DIM]:,
     {
         self.coords().iter().all(|x| x.is_finite())
     }
 
+    #[inline]
     fn fields() -> array::IntoIter<FieldInfo, 3> {
         [
             FieldInfo::single("x", 0),
@@ -68,10 +72,37 @@ pub trait PointRgba: Point {
 
     fn set_rgba(&mut self, rgba: u32);
 
+    #[inline]
+    fn rgba_array(&self) -> [f32; 4] {
+        let rgba = self.rgba();
+        [
+            (rgba & 0xff) as f32,
+            ((rgba >> 8) & 0xff) as f32,
+            ((rgba >> 16) & 0xff) as f32,
+            (rgba >> 24) as f32,
+        ]
+    }
+
+    #[inline]
+    fn set_rgba_array(&mut self, rgba: &[f32; 4]) {
+        self.set_rgba(
+            (rgba[0]) as u32
+                | (((rgba[1]) as u32) << 8)
+                | (((rgba[2]) as u32) << 16)
+                | (((rgba[3]) as u32) << 24),
+        )
+    }
+    #[inline]
+    fn with_rgba_array(mut self, rgba: &[f32; 4]) -> Self {
+        self.set_rgba_array(rgba);
+        self
+    }
+
     fn fields() -> array::IntoIter<FieldInfo, 1>;
 
     type CentroidAccumulator = [f32; 4];
 
+    #[inline]
     fn centroid_accumulate(&self, accum: &mut [f32; 4]) {
         accum[0] += (self.rgba() & 0xff) as f32;
         accum[1] += ((self.rgba() >> 8) & 0xff) as f32;
@@ -79,6 +110,7 @@ pub trait PointRgba: Point {
         accum[3] += (self.rgba() >> 24) as f32;
     }
 
+    #[inline]
     fn centroid_compute(&mut self, accum: [f32; 4], num: usize) {
         let num = num as f32;
         self.set_rgba(
@@ -91,12 +123,11 @@ pub trait PointRgba: Point {
 }
 
 pub trait PointNormal: Point {
-    fn normal(&self)
-        -> MatrixSlice<Self::Data, Const<4>, Const<1>, Const<1>, Const<{ Self::DIM }>>;
+    fn normal(&self) -> VectorSlice4<Self::Data, Const<1>, <Self::Dim as ToConst>::Const>;
 
     fn normal_mut(
         &mut self,
-    ) -> MatrixSliceMut<Self::Data, Const<4>, Const<1>, Const<1>, Const<{ Self::DIM }>>;
+    ) -> VectorSliceMut4<Self::Data, Const<1>, <Self::Dim as ToConst>::Const>;
 
     fn curvature(&self) -> Self::Data;
 
@@ -106,19 +137,19 @@ pub trait PointNormal: Point {
 
     type CentroidAccumulator = (Vector4<Self::Data>, Self::Data);
 
+    #[inline]
     fn centroid_accumulate(&self, accum: &mut (Vector4<Self::Data>, Self::Data))
     where
         Self::Data: ComplexField,
-        [(); Self::DIM]:,
     {
         accum.0 += self.normal();
         accum.1 += self.curvature();
     }
 
+    #[inline]
     fn centroid_compute(&mut self, accum: (Vector4<Self::Data>, Self::Data), num: usize)
     where
         Self::Data: ComplexField,
-        [(); Self::DIM]:,
     {
         let num = <Self::Data>::from_usize(num).unwrap();
         self.normal_mut().set_column(0, &(accum.0 / num.clone()));
@@ -135,6 +166,7 @@ pub trait PointIntensity: Point {
 
     type CentroidAccumulator = Self::Data;
 
+    #[inline]
     fn centroid_accumulate(&self, accum: &mut Self::Data)
     where
         Self::Data: ComplexField,
@@ -142,6 +174,7 @@ pub trait PointIntensity: Point {
         *accum += self.intensity();
     }
 
+    #[inline]
     fn centroid_compute(&mut self, accum: Self::Data, num: usize)
     where
         Self::Data: ComplexField,
@@ -154,7 +187,14 @@ pub trait PointIntensity: Point {
 pub trait PointRange: Point {
     fn range(&self) -> Self::Data;
 
-    fn set_range(&mut self, intensity: Self::Data);
+    fn range_mut(&mut self) -> &mut Self::Data;
+
+    fn set_range(&mut self, range: Self::Data);
+    #[inline]
+    fn with_range(mut self, range: Self::Data) -> Self {
+        self.set_range(range);
+        self
+    }
 
     fn fields() -> array::IntoIter<FieldInfo, 1>;
 }
@@ -168,12 +208,14 @@ pub trait PointLabel: Point {
 
     type CentroidAccumulator = HashMap<u32, usize>;
 
+    #[inline]
     fn centroid_accumulate(&self, accum: &mut HashMap<u32, usize>) {
         if let Err(mut e) = accum.try_insert(self.label(), 1) {
             *e.entry.get_mut() += 1;
         }
     }
 
+    #[inline]
     fn centroid_compute(&mut self, accum: HashMap<u32, usize>, _: usize) {
         let (label, _) = { accum.into_iter() }
             .fold(None, |acc, (label, times)| match acc {
@@ -186,54 +228,52 @@ pub trait PointLabel: Point {
 }
 
 pub trait PointViewpoint: Point {
-    fn viewpoint(
-        &self,
-    ) -> MatrixSlice<Self::Data, Const<4>, Const<1>, Const<1>, Const<{ Self::DIM }>>;
+    fn viewpoint(&self) -> VectorSlice4<Self::Data, Const<1>, <Self::Dim as ToConst>::Const>;
 
     fn viewpoint_mut(
         &mut self,
-    ) -> MatrixSliceMut<Self::Data, Const<4>, Const<1>, Const<1>, Const<{ Self::DIM }>>;
+    ) -> VectorSliceMut4<Self::Data, Const<1>, <Self::Dim as ToConst>::Const>;
 
     fn fields() -> array::IntoIter<FieldInfo, 1>;
 }
 
 define_points! {
     #[auto_centroid]
-    pub struct Point3<f32, 4>;
+    pub struct Point3<f32, U4>;
 
     #[auto_centroid]
-    pub struct Point3Rgba<f32, 5> {
+    pub struct Point3Rgba<f32, U5> {
         rgba: PointRgba [4],
     }
 
     #[auto_centroid]
-    pub struct Point3N<f32, 9> {
+    pub struct Point3N<f32, U9> {
         normal: PointNormal [4, 8],
     }
 
     #[auto_centroid]
-    pub struct Point3RgbaN<f32, 10> {
+    pub struct Point3RgbaN<f32, U10> {
         normal: PointNormal [4, 8],
         rgba: PointRgba [9],
     }
 
     #[auto_centroid]
-    pub struct Point3IN<f32, 10> {
+    pub struct Point3IN<f32, U10> {
         normal: PointNormal [4, 8],
         intensity: PointIntensity [9],
     }
 
     #[auto_centroid]
-    pub struct Point3LN<f32, 10> {
+    pub struct Point3LN<f32, U10> {
         normal: PointNormal [4, 8],
         label: PointLabel [9],
     }
 
-    pub struct Point3Range<f32, 5> {
+    pub struct Point3Range<f32, U5> {
         range: PointRange [4],
     }
 
-    pub struct Point3V<f32, 8> {
+    pub struct Point3V<f32, U8> {
         viewpoint: PointViewpoint [4],
     }
 }

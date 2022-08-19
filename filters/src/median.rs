@@ -1,7 +1,7 @@
 use std::{array, fmt::Debug};
 
 use nalgebra::{RealField, Scalar};
-use pcc_common::{filter::ApproxFilter, point_cloud::PointCloud, points::Point3Infoed};
+use pcc_common::{filter::ApproxFilter, point::Point, point_cloud::PointCloud};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Median2<T: Scalar> {
@@ -18,8 +18,8 @@ impl<T: Scalar> Median2<T> {
     }
 }
 
-impl<T: RealField, I: Debug + Clone> ApproxFilter<PointCloud<Point3Infoed<T, I>>> for Median2<T> {
-    fn filter(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> PointCloud<Point3Infoed<T, I>> {
+impl<T: RealField, P: Point<Data = T>> ApproxFilter<PointCloud<P>> for Median2<T> {
+    fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {
         let mut output = input.clone();
 
         let mut values: [_; 9] = array::from_fn(|_| T::zero());
@@ -37,7 +37,8 @@ impl<T: RealField, I: Debug + Clone> ApproxFilter<PointCloud<Point3Infoed<T, I>>
                             && y >= 0
                             && y as usize <= input.height()
                         {
-                            values[value_index] = input[(x as usize, y as usize)].coords.z.clone();
+                            values[value_index] =
+                                input[(x as usize, y as usize)].coords().z.clone();
                             value_index += 1;
                         }
                     }
@@ -48,11 +49,11 @@ impl<T: RealField, I: Debug + Clone> ApproxFilter<PointCloud<Point3Infoed<T, I>>
                         a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
                     });
 
-                if input[(x, y)].coords.z.clone() - median.clone() <= self.max_displacement {
-                    output[(x, y)].coords.z = median.clone()
+                if input[(x, y)].coords().z.clone() - median.clone() <= self.max_displacement {
+                    output[(x, y)].coords_mut().z = median.clone()
                 } else {
-                    output[(x, y)].coords.z += { self.max_displacement.clone() }
-                        .copysign(median.clone() - input[(x, y)].coords.z.clone())
+                    output[(x, y)].coords_mut().z += { self.max_displacement.clone() }
+                        .copysign(median.clone() - input[(x, y)].coords().z.clone())
                 }
             }
         }

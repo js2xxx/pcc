@@ -3,8 +3,8 @@ use std::fmt::Debug;
 use nalgebra::{RealField, Scalar};
 use pcc_common::{
     filter::{ApproxFilter, Filter},
+    point::Point,
     point_cloud::PointCloud,
-    points::Point3Infoed,
 };
 use pcc_kdtree::{KdTree, KnnResultSet, RadiusResultSet};
 
@@ -30,14 +30,14 @@ impl<T: Scalar> StatOutlierRemoval<T> {
 }
 
 impl<T: RealField> StatOutlierRemoval<T> {
-    fn filter_data<I: Clone + Debug>(&self, input: &PointCloud<Point3Infoed<T, I>>) -> (Vec<T>, T) {
+    fn filter_data<P: Point<Data = T>>(&self, input: &PointCloud<P>) -> (Vec<T>, T) {
         let searcher = KdTree::new(input);
 
         let distance = {
             let mut result = KnnResultSet::new(self.mean_k);
-            let mut dmean_of_point = |point: &Point3Infoed<T, I>| {
+            let mut dmean_of_point = |point: &P| {
                 result.clear();
-                searcher.search_typed(&point.coords, &mut result);
+                searcher.search_typed(point.coords(), &mut result);
                 let sum = result
                     .iter()
                     .map(|(distance, _)| distance.clone())
@@ -75,10 +75,8 @@ impl<T: RealField> StatOutlierRemoval<T> {
     }
 }
 
-impl<T: RealField, I: Clone + Debug> Filter<PointCloud<Point3Infoed<T, I>>>
-    for StatOutlierRemoval<T>
-{
-    fn filter_indices(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> Vec<usize> {
+impl<T: RealField, P: Point<Data = T>> Filter<PointCloud<P>> for StatOutlierRemoval<T> {
+    fn filter_indices(&mut self, input: &PointCloud<P>) -> Vec<usize> {
         let (distance, threshold) = self.filter_data(input);
 
         let mut indices = (0..input.len()).collect::<Vec<_>>();
@@ -86,10 +84,7 @@ impl<T: RealField, I: Clone + Debug> Filter<PointCloud<Point3Infoed<T, I>>>
         indices
     }
 
-    fn filter_all_indices(
-        &mut self,
-        input: &PointCloud<Point3Infoed<T, I>>,
-    ) -> (Vec<usize>, Vec<usize>) {
+    fn filter_all_indices(&mut self, input: &PointCloud<P>) -> (Vec<usize>, Vec<usize>) {
         let (distance, threshold) = self.filter_data(input);
 
         let mut indices = (0..input.len()).collect::<Vec<_>>();
@@ -105,10 +100,8 @@ impl<T: RealField, I: Clone + Debug> Filter<PointCloud<Point3Infoed<T, I>>>
     }
 }
 
-impl<T: RealField, I: Clone + Debug> ApproxFilter<PointCloud<Point3Infoed<T, I>>>
-    for StatOutlierRemoval<T>
-{
-    fn filter(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> PointCloud<Point3Infoed<T, I>> {
+impl<T: RealField, P: Point<Data = T>> ApproxFilter<PointCloud<P>> for StatOutlierRemoval<T> {
+    fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {
         let (distance, threshold) = self.filter_data(input);
 
         let mut output = Vec::from(&**input);
@@ -141,9 +134,9 @@ impl<T: Scalar> RadiusOutlierRemoval<T> {
 }
 
 impl<T: RealField> RadiusOutlierRemoval<T> {
-    fn filter_inner<I: Clone + Debug, U>(
+    fn filter_inner<P: Point<Data = T>, U>(
         &self,
-        input: &PointCloud<Point3Infoed<T, I>>,
+        input: &PointCloud<P>,
         retainer: &mut Vec<U>,
         removed: Option<&mut Vec<usize>>,
     ) {
@@ -169,7 +162,7 @@ impl<T: RealField> RadiusOutlierRemoval<T> {
             let mut result = KnnResultSet::new(self.min_neighbors);
             let mut condition = || {
                 result.clear();
-                searcher.search_typed(&input[index].coords, &mut result);
+                searcher.search_typed(input[index].coords(), &mut result);
 
                 let enough_neighbors = result.len() >= self.min_neighbors;
                 let enough_distance = result.pop().unwrap().0 <= self.radius;
@@ -186,7 +179,7 @@ impl<T: RealField> RadiusOutlierRemoval<T> {
                     return (index, false);
                 }
                 result.clear();
-                searcher.search_typed(&input[index].coords, &mut result);
+                searcher.search_typed(input[index].coords(), &mut result);
 
                 let enough_neighbors = result.len() >= self.min_neighbors;
 
@@ -199,19 +192,14 @@ impl<T: RealField> RadiusOutlierRemoval<T> {
     }
 }
 
-impl<T: RealField, I: Clone + Debug> Filter<PointCloud<Point3Infoed<T, I>>>
-    for RadiusOutlierRemoval<T>
-{
-    fn filter_indices(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> Vec<usize> {
+impl<T: RealField, P: Point<Data = T>> Filter<PointCloud<P>> for RadiusOutlierRemoval<T> {
+    fn filter_indices(&mut self, input: &PointCloud<P>) -> Vec<usize> {
         let mut indices = (0..input.len()).collect::<Vec<_>>();
         self.filter_inner(input, &mut indices, None);
         indices
     }
 
-    fn filter_all_indices(
-        &mut self,
-        input: &PointCloud<Point3Infoed<T, I>>,
-    ) -> (Vec<usize>, Vec<usize>) {
+    fn filter_all_indices(&mut self, input: &PointCloud<P>) -> (Vec<usize>, Vec<usize>) {
         let mut indices = (0..input.len()).collect::<Vec<_>>();
         let mut removed = Vec::with_capacity(indices.len());
         self.filter_inner(input, &mut indices, Some(&mut removed));
@@ -219,10 +207,8 @@ impl<T: RealField, I: Clone + Debug> Filter<PointCloud<Point3Infoed<T, I>>>
     }
 }
 
-impl<T: RealField, I: Clone + Debug> ApproxFilter<PointCloud<Point3Infoed<T, I>>>
-    for RadiusOutlierRemoval<T>
-{
-    fn filter(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> PointCloud<Point3Infoed<T, I>> {
+impl<T: RealField, P: Point<Data = T>> ApproxFilter<PointCloud<P>> for RadiusOutlierRemoval<T> {
+    fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {
         let mut storage = Vec::from(&**input);
         self.filter_inner(input, &mut storage, None);
         PointCloud::from_vec(storage, 1)

@@ -1,7 +1,7 @@
 use std::{fmt::Debug, marker::PhantomData};
 
 use nalgebra::{ComplexField, Scalar, Vector4};
-use pcc_common::{filter::ApproxFilter, point_cloud::PointCloud, points::Point3Infoed};
+use pcc_common::{filter::ApproxFilter, point::Point, point_cloud::PointCloud};
 use pcc_sac::SacModel;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,14 +21,13 @@ impl<T: Scalar, M: SacModel<Vector4<T>>> InlierProjection<T, M> {
     }
 }
 
-impl<T: ComplexField, M: SacModel<Vector4<T>>, I: Clone + Debug>
-    ApproxFilter<PointCloud<Point3Infoed<T, I>>> for InlierProjection<T, M>
+impl<T: ComplexField, M: SacModel<Vector4<T>>, P: Point<Data = T>> ApproxFilter<PointCloud<P>>
+    for InlierProjection<T, M>
 {
-    fn filter(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> PointCloud<Point3Infoed<T, I>> {
+    fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {
         let storage = { self.inliers.iter() }
-            .map(|&index| Point3Infoed {
-                coords: self.model.project(&input[index].coords),
-                extra: input[index].extra.clone(),
+            .map(|&index| {
+                { input[index].clone() }.with_coords(self.model.project(input[index].coords()))
             })
             .collect::<Vec<_>>();
         PointCloud::from_vec(storage, 1)

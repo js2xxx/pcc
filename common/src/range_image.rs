@@ -1,19 +1,23 @@
 use std::{mem, ops::Deref};
 
-use nalgebra::{Affine3, RealField, Scalar, Vector2, Vector3, Vector4};
-use num::{Float, ToPrimitive};
+use nalgebra::{Affine3, RealField, Vector2, Vector3, Vector4};
+use num::{Float, FromPrimitive, One, ToPrimitive};
 
 use crate::{
+    point::{Point, PointRange, PointViewpoint},
     point_cloud::PointCloud,
-    points::{Centroid, Point3Infoed, Point3Range, PointInfoRange, PointViewpoint},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RangeImage<T: RealField> {
-    point_cloud: PointCloud<Point3Range<T>>,
-    transform: Affine3<T>,
-    inverse_transform: Affine3<T>,
-    angular_resolution: Vector2<T>,
+pub struct RangeImage<P>
+where
+    P: PointRange,
+    P::Data: RealField,
+{
+    point_cloud: PointCloud<P>,
+    transform: Affine3<P::Data>,
+    inverse_transform: Affine3<P::Data>,
+    angular_resolution: Vector2<P::Data>,
     image_offset: Vector2<usize>,
 }
 
@@ -75,26 +79,29 @@ fn point_to_image<T: RealField>(
 }
 
 #[inline]
-pub fn unobserved<T: RealField + Float>() -> Point3Infoed<T, PointInfoRange<T>> {
-    Point3Range {
-        coords: Vector4::zeros(),
-        extra: PointInfoRange {
-            range: T::infinity(),
-        },
-    }
+pub fn unobserved<P>() -> P
+where
+    P: PointRange,
+    P::Data: Float,
+{
+    P::default().with_range(P::Data::infinity())
 }
 
-pub struct CreateOptions<'a, T: Scalar, I> {
-    pub point_cloud: &'a PointCloud<Point3Infoed<T, I>>,
-    pub angular_resolution: Vector2<T>,
-    pub noise: T,
-    pub min_range: T,
+pub struct CreateOptions<'a, P: Point> {
+    pub point_cloud: &'a PointCloud<P>,
+    pub angular_resolution: Vector2<P::Data>,
+    pub noise: P::Data,
+    pub min_range: P::Data,
     pub border_size: usize,
 }
 
-impl<T: RealField> RangeImage<T> {
+impl<P> RangeImage<P>
+where
+    P: PointRange,
+    P::Data: RealField,
+{
     #[inline]
-    pub fn empty(angular_resolution: Vector2<T>) -> Self {
+    pub fn empty(angular_resolution: Vector2<P::Data>) -> Self {
         RangeImage {
             point_cloud: PointCloud::new(),
             transform: Affine3::identity(),
@@ -110,63 +117,77 @@ impl<T: RealField> RangeImage<T> {
     }
 
     #[inline]
-    pub fn sensor_pose(&self) -> Vector4<T> {
+    pub fn sensor_pose(&self) -> Vector4<P::Data> {
         self.transform.matrix().column(3).into()
     }
 
     #[inline]
-    pub fn into_inner(ri: Self) -> PointCloud<Point3Range<T>> {
+    pub fn into_inner(ri: Self) -> PointCloud<P> {
         ri.point_cloud
     }
 }
 
-impl<T: RealField> Deref for RangeImage<T> {
-    type Target = PointCloud<Point3Range<T>>;
+impl<P> Deref for RangeImage<P>
+where
+    P: PointRange,
+    P::Data: RealField,
+{
+    type Target = PointCloud<P>;
 
     fn deref(&self) -> &Self::Target {
         &self.point_cloud
     }
 }
 
-impl<T: RealField> From<RangeImage<T>> for PointCloud<Point3Range<T>> {
-    fn from(ri: RangeImage<T>) -> Self {
+impl<P> From<RangeImage<P>> for PointCloud<P>
+where
+    P: PointRange,
+    P::Data: RealField,
+{
+    fn from(ri: RangeImage<P>) -> Self {
         ri.point_cloud
     }
 }
 
-impl<T: RealField + ToPrimitive + Float> RangeImage<T> {
-    pub fn new<I>(
-        angle_size: &[T; 2],
-        sensor_pose: Affine3<T>,
-        options: &CreateOptions<T, I>,
+impl<P> RangeImage<P>
+where
+    P: PointRange,
+    P::Data: RealField + Float,
+{
+    pub fn new<P2: Point<Data = P::Data>>(
+        angle_size: &[P::Data; 2],
+        sensor_pose: Affine3<P::Data>,
+        options: &CreateOptions<P2>,
     ) -> Self {
         let angle_size = Vector2::from(*angle_size);
 
         let size = { angle_size.component_div(&options.angular_resolution) }
             .map(|x| Float::floor(x).to_usize().unwrap());
-        let full_size =
-            { Vector2::new(T::two_pi(), T::pi()).component_div(&options.angular_resolution) }
-                .map(|x| Float::floor(x).to_usize().unwrap());
+        let full_size = {
+            Vector2::new(P::Data::two_pi(), P::Data::pi())
+                .component_div(&options.angular_resolution)
+        }
+        .map(|x| Float::floor(x).to_usize().unwrap());
 
         let image_offset = (full_size - size) / 2;
 
         Self::new_inner(sensor_pose, image_offset, size, options)
     }
 
-    pub fn within_sphere<I>(
-        &(center, radius): &(Vector4<T>, T),
-        sensor_pose: Affine3<T>,
-        options: &CreateOptions<T, I>,
+    pub fn within_sphere<P2: Point<Data = P::Data>>(
+        &(center, radius): &(Vector4<P::Data>, P::Data),
+        sensor_pose: Affine3<P::Data>,
+        options: &CreateOptions<P2>,
     ) -> Self {
         let norm = (center - sensor_pose.matrix().column(3)).norm();
         if norm < radius {
-            return Self::new(&[T::pi(), T::frac_pi_2()], sensor_pose, options);
+            return Self::new(&[P::Data::pi(), P::Data::frac_pi_2()], sensor_pose, options);
         }
 
-        let max_size = Float::asin(radius / norm) * (T::one() + T::one());
+        let max_size = Float::asin(radius / norm) * (P::Data::one() + P::Data::one());
 
         let radius = options.angular_resolution.map(|r| {
-            Float::ceil(max_size / r / (T::one() + T::one()))
+            Float::ceil(max_size / r / (P::Data::one() + P::Data::one()))
                 .to_usize()
                 .unwrap()
         });
@@ -186,31 +207,23 @@ impl<T: RealField + ToPrimitive + Float> RangeImage<T> {
         Self::new_inner(sensor_pose, image_offset, size, options)
     }
 
-    pub fn with_viewpoint<I: PointViewpoint<T> + Centroid>(
-        angle_size: &[T; 2],
-        options: &CreateOptions<T, I>,
-    ) -> Self
-    where
-        T: Centroid + Default,
-        T::Accumulator: Default,
-        I::Accumulator: Default,
-    {
-        let viewpoint = { options.point_cloud.centroid().0.unwrap() }
-            .extra
-            .viewpoint()
-            .viewpoint;
+    pub fn with_viewpoint<P2: PointViewpoint<Data = P::Data>>(
+        angle_size: &[P::Data; 2],
+        options: &CreateOptions<P2>,
+    ) -> Self {
+        let viewpoint = options.point_cloud.viewpoint_center().unwrap();
         let mut sensor_pose = Affine3::identity();
-        *sensor_pose.matrix_mut_unchecked().column_mut(3) = *viewpoint;
+        sensor_pose.matrix_mut_unchecked().set_column(3, &viewpoint);
 
         Self::new(angle_size, sensor_pose, options)
     }
 
-    fn new_inner<I>(
-        sensor_pose: Affine3<T>,
+    fn new_inner<P2: Point<Data = P::Data>>(
+        sensor_pose: Affine3<P::Data>,
         image_offset: Vector2<usize>,
         size: Vector2<usize>,
-        options: &CreateOptions<T, I>,
-    ) -> RangeImage<T> {
+        options: &CreateOptions<P2>,
+    ) -> RangeImage<P> {
         let mut ri = RangeImage {
             point_cloud: PointCloud::new(),
             transform: sensor_pose,
@@ -220,7 +233,10 @@ impl<T: RealField + ToPrimitive + Float> RangeImage<T> {
         };
 
         let boundaries = ri.proc_zbuffer(
-            options.point_cloud.iter().map(|point| &point.coords),
+            options
+                .point_cloud
+                .iter()
+                .map(|point| point.coords().into_owned()),
             size.x,
             size.y,
             options.noise,
@@ -237,16 +253,16 @@ impl<T: RealField + ToPrimitive + Float> RangeImage<T> {
         ri
     }
 
-    fn proc_zbuffer<'a, Iter>(
+    fn proc_zbuffer<Iter>(
         &mut self,
         points: Iter,
         width: usize,
         height: usize,
-        noise: T,
-        min_range: T,
+        noise: P::Data,
+        min_range: P::Data,
     ) -> [usize; 4]
     where
-        Iter: Iterator<Item = &'a Vector4<T>>,
+        Iter: Iterator<Item = Vector4<P::Data>>,
     {
         let [mut xmin, mut xmax, mut ymin, mut ymax] = [None; 4];
 
@@ -264,7 +280,7 @@ impl<T: RealField + ToPrimitive + Float> RangeImage<T> {
             }
 
             let (image, range) = point_to_image(
-                coords,
+                &coords,
                 &self.inverse_transform,
                 &self.angular_resolution,
                 &self.image_offset,
@@ -295,8 +311,8 @@ impl<T: RealField + ToPrimitive + Float> RangeImage<T> {
                 };
                 for (nx, ny) in neighbors {
                     if counter[ny * width + nx] == 0 {
-                        let value = self.point_cloud[ny * width + nx].extra.range;
-                        self.point_cloud[ny * width + nx].extra.range = Float::min(value, range);
+                        let value = self.point_cloud[ny * width + nx].range();
+                        self.point_cloud[ny * width + nx].set_range(Float::min(value, range));
 
                         xmin = Some(xmin.map_or(nx, |xmin| nx.max(xmin)));
                         xmax = Some(xmax.map_or(nx, |xmax| nx.max(xmax)));
@@ -308,7 +324,7 @@ impl<T: RealField + ToPrimitive + Float> RangeImage<T> {
 
             let index = y * width + x;
             let counter = &mut counter[index];
-            let min_range = &mut self.point_cloud[index].extra.range;
+            let min_range = self.point_cloud[index].range_mut();
             if *counter == 0 || range < *min_range - noise {
                 *counter = 1;
                 *min_range = range;
@@ -318,7 +334,7 @@ impl<T: RealField + ToPrimitive + Float> RangeImage<T> {
                 ymax = Some(ymax.map_or(y, |ymax| y.max(ymax)));
             } else if Float::abs(range - *min_range) < noise {
                 *counter += 1;
-                *min_range += (range - *min_range) / T::from_usize(*counter).unwrap();
+                *min_range += (range - *min_range) / P::Data::from_usize(*counter).unwrap();
             }
         }
 
@@ -328,7 +344,10 @@ impl<T: RealField + ToPrimitive + Float> RangeImage<T> {
     }
 }
 
-impl<T: RealField + Float> RangeImage<T> {
+impl<P: PointRange> RangeImage<P>
+where
+    P::Data: RealField + Float,
+{
     pub fn crop(&mut self, border_size: usize, &[xmin, xmax, ymin, ymax]: &[usize; 4]) {
         let width = xmax - xmin + 1 + border_size * 2;
         let height = ymax - ymin + 1 + border_size * 2;
@@ -345,7 +364,7 @@ impl<T: RealField + Float> RangeImage<T> {
                 let old_y = y + ymin + border_size;
 
                 self.point_cloud[y * width + x] = if old_x <= xmax && old_y <= ymax {
-                    old[old_y * old.width() + old_x]
+                    old[old_y * old.width() + old_x].clone()
                 } else {
                     unobserved()
                 }
@@ -358,27 +377,27 @@ impl<T: RealField + Float> RangeImage<T> {
     fn calculate_at(&mut self, x: usize, y: usize) {
         let width = self.point_cloud.width();
         let point = &mut self.point_cloud[y * width + x];
-        let range = point.extra.range;
+        let range = point.range();
 
         let angle = image_to_angle(
-            &Vector2::new(x, y).map(|x| T::from_usize(x).unwrap()),
+            &Vector2::new(x, y).map(|x| P::Data::from_usize(x).unwrap()),
             &self.angular_resolution,
             &self.image_offset,
         );
 
         let cosy = Float::cos(angle.y);
-        point.coords = (self.transform
+        **point.coords_mut() = *(self.transform
             * Vector3::new(
                 range * Float::sin(angle.x) * cosy,
                 range * Float::sin(angle.y),
                 range * Float::cos(angle.x) * cosy,
             ))
-        .insert_row(1, T::one());
+        .insert_row(1, P::Data::one());
     }
 
     pub fn integrate_far_ranges<'a, Iter>(&mut self, far_ranges: Iter)
     where
-        Iter: Iterator<Item = &'a Vector4<T>>,
+        Iter: Iterator<Item = &'a Vector4<P::Data>>,
     {
         for coords in far_ranges {
             if !coords.iter().all(|x| x.is_finite()) {
@@ -409,9 +428,9 @@ impl<T: RealField + Float> RangeImage<T> {
                 if !self.contains_key(nx, ny) {
                     continue;
                 }
-                let range = &mut self.point_cloud[(nx, ny)].extra.range;
+                let range = &mut self.point_cloud[(nx, ny)].range();
                 if !range.is_finite() {
-                    *range = T::infinity()
+                    *range = P::Data::infinity()
                 }
             }
         }
@@ -427,7 +446,7 @@ impl<T: RealField + Float> RangeImage<T> {
         let src_base = image_offset * combine_pixels - self.image_offset;
         for x in 0..width {
             for y in 0..height {
-                let dst = &mut storage[y * width + x];
+                let dst: &mut P = &mut storage[y * width + x];
                 for src_x in
                     (src_base.x + combine_pixels * x)..(src_base.x + combine_pixels * (x + 1))
                 {
@@ -438,8 +457,8 @@ impl<T: RealField + Float> RangeImage<T> {
                             continue;
                         }
                         let src = &self.point_cloud[(src_x, src_y)];
-                        if !src.extra.range.is_finite() || src.extra.range < dst.extra.range {
-                            *dst = *src;
+                        if !src.range().is_finite() || src.range() < dst.range() {
+                            *dst = src.clone();
                         }
                     }
                 }

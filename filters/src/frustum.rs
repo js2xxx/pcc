@@ -3,8 +3,8 @@ use std::{array, fmt::Debug};
 use nalgebra::{matrix, RealField, Transform3};
 use pcc_common::{
     filter::{ApproxFilter, Filter},
+    point::Point,
     point_cloud::PointCloud,
-    points::Point3Infoed,
 };
 use pcc_sac::{Plane, PlaneEstimator};
 
@@ -81,7 +81,8 @@ impl<T: RealField> FrustumCulling<T> {
 
         let points: [_; 7] = array::from_fn(|index| {
             self.camera_pose
-                .transform_vector(&points[index])
+                .transform_point(&points[index].clone().into())
+                .coords
                 .insert_row(3, T::one())
         });
 
@@ -96,25 +97,25 @@ impl<T: RealField> FrustumCulling<T> {
     }
 }
 
-impl<T: RealField, I> Filter<[Point3Infoed<T, I>]> for FrustumCulling<T> {
-    fn filter_indices(&mut self, input: &[Point3Infoed<T, I>]) -> Vec<usize> {
+impl<T: RealField, P: Point<Data = T>> Filter<[P]> for FrustumCulling<T> {
+    fn filter_indices(&mut self, input: &[P]) -> Vec<usize> {
         let planes = self.compute_planes();
 
         let mut indices = (0..input.len()).collect::<Vec<_>>();
         indices.retain(|&index| {
-            { planes.iter() }.all(|plane| plane.same_side_with_normal(&input[index].coords))
+            { planes.iter() }.all(|plane| plane.same_side_with_normal(input[index].coords()))
         });
         indices
     }
 
-    fn filter_all_indices(&mut self, input: &[Point3Infoed<T, I>]) -> (Vec<usize>, Vec<usize>) {
+    fn filter_all_indices(&mut self, input: &[P]) -> (Vec<usize>, Vec<usize>) {
         let planes = self.compute_planes();
 
         let mut indices = (0..input.len()).collect::<Vec<_>>();
         let mut removed = Vec::with_capacity(indices.len());
         indices.retain(|&index| {
             let ret =
-                { planes.iter() }.all(|plane| plane.same_side_with_normal(&input[index].coords));
+                { planes.iter() }.all(|plane| plane.same_side_with_normal(input[index].coords()));
             if !ret {
                 removed.push(index)
             }
@@ -124,15 +125,13 @@ impl<T: RealField, I> Filter<[Point3Infoed<T, I>]> for FrustumCulling<T> {
     }
 }
 
-impl<T: RealField, I: Clone + Debug> ApproxFilter<PointCloud<Point3Infoed<T, I>>>
-    for FrustumCulling<T>
-{
-    fn filter(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> PointCloud<Point3Infoed<T, I>> {
+impl<T: RealField, P: Point<Data = T>> ApproxFilter<PointCloud<P>> for FrustumCulling<T> {
+    fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {
         let planes = self.compute_planes();
 
         let mut storage = Vec::from(&**input);
         storage.retain(|point| {
-            { planes.iter() }.all(|plane| plane.same_side_with_normal(&point.coords))
+            { planes.iter() }.all(|plane| plane.same_side_with_normal(point.coords()))
         });
 
         PointCloud::from_vec(storage, 1)

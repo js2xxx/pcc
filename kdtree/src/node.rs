@@ -2,6 +2,7 @@ use std::ptr::NonNull;
 
 use bitvec::vec::BitVec;
 use nalgebra::{RealField, Scalar, Vector3, Vector4};
+use pcc_common::point::Point;
 
 use crate::ResultSet;
 
@@ -43,7 +44,7 @@ impl<'a, T: Scalar> Node<'a, T> {
     }
 }
 
-fn cut_split<T: Scalar + PartialOrd, P: AsRef<Vector4<T>>>(
+fn cut_split<T: Scalar + PartialOrd, P: Point<Data = T>>(
     coords: &[P],
     indices: &mut [usize],
     dim: usize,
@@ -52,10 +53,10 @@ fn cut_split<T: Scalar + PartialOrd, P: AsRef<Vector4<T>>>(
     let mut left = 0;
     let mut right = indices.len() - 1;
     loop {
-        while left <= right && coords[indices[left]].as_ref()[dim] < value {
+        while left <= right && coords[indices[left]].coords()[dim] < value {
             left += 1
         }
-        while left <= right && coords[indices[right]].as_ref()[dim] >= value {
+        while left <= right && coords[indices[right]].coords()[dim] >= value {
             right -= 1
         }
         if left > right {
@@ -69,10 +70,10 @@ fn cut_split<T: Scalar + PartialOrd, P: AsRef<Vector4<T>>>(
     let limit_left = left;
     right = indices.len() - 1;
     loop {
-        while left <= right && coords[indices[left]].as_ref()[dim] <= value {
+        while left <= right && coords[indices[left]].coords()[dim] <= value {
             left += 1
         }
-        while left <= right && coords[indices[right]].as_ref()[dim] > value {
+        while left <= right && coords[indices[right]].coords()[dim] > value {
             right -= 1
         }
         if left > right {
@@ -88,17 +89,17 @@ fn cut_split<T: Scalar + PartialOrd, P: AsRef<Vector4<T>>>(
     (limit_left, limit_right)
 }
 
-fn cut<T: RealField, P: AsRef<Vector4<T>>>(
+fn cut<T: RealField, P: Point<Data = T>>(
     coords: &[P],
     indices: &mut [usize],
     last: Option<usize>,
 ) -> (usize, usize, T) {
     let sum = { indices.iter() }
-        .map(|&i| coords[i].as_ref().xyz())
+        .map(|&i| coords[i].coords().xyz())
         .fold(Vector3::zeros(), |acc, coord| acc + coord);
 
     let mean = sum / T::from_usize(coords.len()).unwrap();
-    let var = { indices.iter() }.map(|&i| coords[i].as_ref().xyz()).fold(
+    let var = { indices.iter() }.map(|&i| coords[i].coords().xyz()).fold(
         Vector3::zeros(),
         |acc, coord| {
             let diff = coord - mean.clone();
@@ -145,10 +146,10 @@ impl<'a, T: RealField> Node<'a, T> {
         last_dim: Option<usize>,
     ) -> NonNull<Self>
     where
-        P: AsRef<Vector4<T>>,
+        P: Point<Data = T>,
     {
         let node = if indices.len() == 1 {
-            let coord: &'a Vector4<T> = coords[indices[0]].as_ref();
+            let coord: &'a Vector4<T> = coords[indices[0]].coords();
             Node::new_leaf(start_index, coord)
         } else {
             let (split, dim, value) = cut(coords, indices, last_dim);

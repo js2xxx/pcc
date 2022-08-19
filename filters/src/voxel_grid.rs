@@ -4,8 +4,8 @@ use nalgebra::{RealField, Scalar, Vector2, Vector4};
 use num::ToPrimitive;
 use pcc_common::{
     filter::{ApproxFilter, Filter},
+    point::{Centroid, Point},
     point_cloud::PointCloud,
-    points::{Centroid, Point3Infoed},
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -19,13 +19,14 @@ impl<T: Scalar> VoxelGrid<T> {
     }
 }
 
-impl<T: RealField + ToPrimitive + Centroid + Default, I: std::fmt::Debug + Default + Centroid>
-    ApproxFilter<PointCloud<Point3Infoed<T, I>>> for VoxelGrid<T>
+impl<T, P> ApproxFilter<PointCloud<P>> for VoxelGrid<T>
 where
-    <I as Centroid>::Accumulator: Default,
+    T: RealField + ToPrimitive + Centroid + Default,
+    P: Point<Data = T> + Centroid<Result = P>,
+    <P as Centroid>::Accumulator: Default,
 {
-    fn filter(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> PointCloud<Point3Infoed<T, I>> {
-        let (min, _) = match input.finite_bound() {
+    fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {
+        let [min, _] = match input.finite_bound() {
             Some(bound) => bound,
             None => return PointCloud::new(),
         };
@@ -35,7 +36,7 @@ where
         let mut key_point = if bounded {
             { input.iter() }
                 .map(|point| {
-                    let coords = &point.coords;
+                    let coords = point.coords();
                     let index = (coords - &min)
                         .component_div(&self.grid_unit)
                         .map(|x| x.floor().to_usize().unwrap());
@@ -45,7 +46,7 @@ where
         } else {
             { input.iter().filter(|point| point.is_finite()) }
                 .map(|point| {
-                    let coords = &point.coords;
+                    let coords = point.coords();
                     let index = (coords - &min)
                         .component_div(&self.grid_unit)
                         .map(|x| x.floor().to_usize().unwrap());
@@ -89,13 +90,14 @@ impl<T: Scalar> HashVoxelGrid<T> {
     }
 }
 
-impl<T: RealField + ToPrimitive + Centroid + Default, I: std::fmt::Debug + Default + Centroid>
-    ApproxFilter<PointCloud<Point3Infoed<T, I>>> for HashVoxelGrid<T>
+impl<T, P> ApproxFilter<PointCloud<P>> for HashVoxelGrid<T>
 where
-    <I as Centroid>::Accumulator: Default,
+    T: RealField + ToPrimitive + Centroid + Default,
+    P: Point<Data = T> + Centroid<Result = P>,
+    <P as Centroid>::Accumulator: Default,
 {
-    fn filter(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> PointCloud<Point3Infoed<T, I>> {
-        let (min, _) = match input.finite_bound() {
+    fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {
+        let [min, _] = match input.finite_bound() {
             Some(bound) => bound,
             None => return PointCloud::new(),
         };
@@ -113,7 +115,7 @@ where
         let key_point = if bounded {
             { input.iter() }
                 .map(|point| {
-                    let coords = &point.coords;
+                    let coords = point.coords();
                     let index = (coords - &min)
                         .component_div(&self.grid_unit)
                         .map(|x| x.floor().to_usize().unwrap());
@@ -123,7 +125,7 @@ where
         } else {
             { input.iter().filter(|point| point.is_finite()) }
                 .map(|point| {
-                    let coords = &point.coords;
+                    let coords = point.coords();
                     let index = (coords - &min)
                         .component_div(&self.grid_unit)
                         .map(|x| x.floor().to_usize().unwrap());
@@ -153,11 +155,11 @@ impl<T: Scalar> GridMinimumZ<T> {
 }
 
 impl<T: RealField + ToPrimitive> GridMinimumZ<T> {
-    fn filter_data<I>(
+    fn filter_data<P: Point<Data = T>>(
         &mut self,
-        input: &PointCloud<Point3Infoed<T, I>>,
+        input: &PointCloud<P>,
     ) -> Option<Vec<([usize; 2], usize)>> {
-        let (min, _) = match input.finite_bound() {
+        let [min, _] = match input.finite_bound() {
             Some(bound) => bound,
             None => return None,
         };
@@ -166,7 +168,7 @@ impl<T: RealField + ToPrimitive> GridMinimumZ<T> {
         let mut key_index = if bounded {
             { input.iter().enumerate() }
                 .map(|(index, point)| {
-                    let coords = &point.coords;
+                    let coords = point.coords();
                     let key = (coords.xy() - &min)
                         .component_div(&self.grid_unit)
                         .map(|x| x.floor().to_usize().unwrap());
@@ -181,7 +183,7 @@ impl<T: RealField + ToPrimitive> GridMinimumZ<T> {
                     .filter(|(_, point)| point.is_finite())
             }
             .map(|(index, point)| {
-                let coords = &point.coords;
+                let coords = point.coords();
                 let key = (coords.xy() - &min)
                     .component_div(&self.grid_unit)
                     .map(|x| x.floor().to_usize().unwrap());
@@ -193,9 +195,9 @@ impl<T: RealField + ToPrimitive> GridMinimumZ<T> {
         Some(key_index)
     }
 
-    fn filter_inner<I, F1, F2>(
+    fn filter_inner<P: Point<Data = T>, F1, F2>(
         &self,
-        input: &PointCloud<Point3Infoed<T, I>>,
+        input: &PointCloud<P>,
         key_index: Vec<([usize; 2], usize)>,
         mut push_index: F1,
         mut push_removed: F2,
@@ -217,9 +219,9 @@ impl<T: RealField + ToPrimitive> GridMinimumZ<T> {
             }
 
             min = match min {
-                Some((value, i)) if value > input[index].coords.z => {
+                Some((value, i)) if value > input[index].coords().z => {
                     push_removed(i);
-                    Some((input[index].coords.z.clone(), index))
+                    Some((input[index].coords().z.clone(), index))
                 }
                 _ => min,
             };
@@ -230,8 +232,8 @@ impl<T: RealField + ToPrimitive> GridMinimumZ<T> {
     }
 }
 
-impl<T: RealField + ToPrimitive, I> Filter<PointCloud<Point3Infoed<T, I>>> for GridMinimumZ<T> {
-    fn filter_indices(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> Vec<usize> {
+impl<T: RealField + ToPrimitive, P: Point<Data = T>> Filter<PointCloud<P>> for GridMinimumZ<T> {
+    fn filter_indices(&mut self, input: &PointCloud<P>) -> Vec<usize> {
         let key_index = match self.filter_data(input) {
             Some(key_index) => key_index,
             None => return Vec::new(),
@@ -243,10 +245,7 @@ impl<T: RealField + ToPrimitive, I> Filter<PointCloud<Point3Infoed<T, I>>> for G
         indices
     }
 
-    fn filter_all_indices(
-        &mut self,
-        input: &PointCloud<Point3Infoed<T, I>>,
-    ) -> (Vec<usize>, Vec<usize>) {
+    fn filter_all_indices(&mut self, input: &PointCloud<P>) -> (Vec<usize>, Vec<usize>) {
         let key_index = match self.filter_data(input) {
             Some(key_index) => key_index,
             None => return (Vec::new(), Vec::new()),
@@ -265,10 +264,10 @@ impl<T: RealField + ToPrimitive, I> Filter<PointCloud<Point3Infoed<T, I>>> for G
     }
 }
 
-impl<T: RealField + ToPrimitive, I: Debug + Clone> ApproxFilter<PointCloud<Point3Infoed<T, I>>>
+impl<T: RealField + ToPrimitive, P: Point<Data = T>> ApproxFilter<PointCloud<P>>
     for GridMinimumZ<T>
 {
-    fn filter(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> PointCloud<Point3Infoed<T, I>> {
+    fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {
         let key_index = match self.filter_data(input) {
             Some(key_index) => key_index,
             None => return PointCloud::new(),

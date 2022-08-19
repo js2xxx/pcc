@@ -4,8 +4,8 @@ use nalgebra::{matrix, RealField, Scalar};
 use num::ToPrimitive;
 use pcc_common::{
     filter::{ApproxFilter, Filter},
+    point::Point,
     point_cloud::PointCloud,
-    points::Point3Infoed,
 };
 use pcc_kdtree::{KdTree, RadiusResultSet};
 use pcc_sac::Plane;
@@ -24,10 +24,7 @@ impl<T: Scalar> LocalMaximumZ<T> {
 }
 
 impl<T: RealField + ToPrimitive> LocalMaximumZ<T> {
-    fn projected<I: Clone + Debug>(
-        &self,
-        input: &PointCloud<Point3Infoed<T, I>>,
-    ) -> PointCloud<Point3Infoed<T, I>> {
+    fn projected<P: Point<Data = T>>(&self, input: &PointCloud<P>) -> PointCloud<P> {
         let mut projector = InlierProjection::new(
             Plane {
                 coords: matrix![T::zero(); T::zero(); T::one(); T::one()],
@@ -38,9 +35,9 @@ impl<T: RealField + ToPrimitive> LocalMaximumZ<T> {
         projector.filter(input)
     }
 
-    fn filter_inner<I: Clone + Debug, U>(
+    fn filter_inner<P: Point<Data = T>, U>(
         &self,
-        input: &PointCloud<Point3Infoed<T, I>>,
+        input: &PointCloud<P>,
         retainer: &mut Vec<U>,
         removed: Option<&mut Vec<usize>>,
     ) {
@@ -71,9 +68,10 @@ impl<T: RealField + ToPrimitive> LocalMaximumZ<T> {
                 return (index - 1, true);
             }
 
-            searcher.search_typed(&projected[index].coords, &mut result);
+            searcher.search_typed(projected[index].coords(), &mut result);
             let iter = result.iter();
-            let ret = { iter.clone() }.any(|(_, i)| input[*i].coords.z >= input[index].coords.z);
+            let ret =
+                { iter.clone() }.any(|(_, i)| input[*i].coords().z >= input[index].coords().z);
             if !ret {
                 for (_, i) in iter {
                     visited[*i] = true;
@@ -86,20 +84,15 @@ impl<T: RealField + ToPrimitive> LocalMaximumZ<T> {
     }
 }
 
-impl<T: RealField + ToPrimitive, I: Clone + Debug> Filter<PointCloud<Point3Infoed<T, I>>>
-    for LocalMaximumZ<T>
-{
-    fn filter_indices(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> Vec<usize> {
+impl<T: RealField + ToPrimitive, P: Point<Data = T>> Filter<PointCloud<P>> for LocalMaximumZ<T> {
+    fn filter_indices(&mut self, input: &PointCloud<P>) -> Vec<usize> {
         let mut indices = (0..input.len()).collect::<Vec<_>>();
         self.filter_inner(input, &mut indices, None);
 
         indices
     }
 
-    fn filter_all_indices(
-        &mut self,
-        input: &PointCloud<Point3Infoed<T, I>>,
-    ) -> (Vec<usize>, Vec<usize>) {
+    fn filter_all_indices(&mut self, input: &PointCloud<P>) -> (Vec<usize>, Vec<usize>) {
         let mut indices = (0..input.len()).collect::<Vec<_>>();
         let mut removed = Vec::with_capacity(indices.len());
         self.filter_inner(input, &mut indices, Some(&mut removed));
@@ -108,10 +101,10 @@ impl<T: RealField + ToPrimitive, I: Clone + Debug> Filter<PointCloud<Point3Infoe
     }
 }
 
-impl<T: RealField + ToPrimitive, I: Clone + Debug> ApproxFilter<PointCloud<Point3Infoed<T, I>>>
+impl<T: RealField + ToPrimitive, P: Point<Data = T>> ApproxFilter<PointCloud<P>>
     for LocalMaximumZ<T>
 {
-    fn filter(&mut self, input: &PointCloud<Point3Infoed<T, I>>) -> PointCloud<Point3Infoed<T, I>> {
+    fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {
         let mut storage = Vec::from(&**input);
         self.filter_inner(input, &mut storage, None);
 

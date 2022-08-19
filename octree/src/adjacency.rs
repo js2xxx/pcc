@@ -7,7 +7,7 @@ use std::{
 
 use nalgebra::{ComplexField, RealField, Scalar, Vector3, Vector4};
 use num::ToPrimitive;
-use pcc_common::{point_cloud::PointCloud, points::Point3Infoed};
+use pcc_common::{point::Point, point_cloud::PointCloud};
 use petgraph::prelude::UnGraph;
 
 use crate::{node::Node, point_cloud::coords_to_key, CreateOptions, OcTreePc};
@@ -34,14 +34,14 @@ impl<'a, L, T: Scalar + num::Zero> Default for OcTreePcAdjacency<'a, L, T> {
 }
 
 impl<'a, L: Default, T: RealField + ToPrimitive> OcTreePcAdjacency<'a, L, T> {
-    pub fn from_point_cloud<I>(
-        point_cloud: &'a PointCloud<Point3Infoed<T, I>>,
+    pub fn from_point_cloud<P: Point<Data = T>>(
+        point_cloud: &'a PointCloud<P>,
         options: CreateOptions<T>,
     ) -> Self {
         let mut tree = OcTreePcAdjacency {
             inner: OcTreePc::new(point_cloud, options, |tree, mul, add| {
                 for point in point_cloud.iter() {
-                    let key = coords_to_key(&point.coords, mul.clone(), add);
+                    let key = coords_to_key(point.coords(), mul.clone(), add);
                     let leaf: &mut Leaf<_> = tree.get_or_insert_with(&key, Default::default);
                     leaf.num += 1;
                 }

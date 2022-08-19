@@ -5,23 +5,26 @@ mod result;
 
 use std::ptr::NonNull;
 
-use nalgebra::{RealField, Scalar, Vector4};
+use nalgebra::{RealField, Vector4};
 use node::Node;
-use pcc_common::{point_cloud::PointCloud, points::Point3Infoed, search::SearchType};
+use pcc_common::{point::Point, point_cloud::PointCloud, search::SearchType};
 
 pub use self::result::*;
 
-pub struct KdTree<'a, T: Scalar, I> {
-    point_cloud: &'a PointCloud<Point3Infoed<T, I>>,
-    root: Option<NonNull<Node<'a, T>>>,
+pub struct KdTree<'a, P: Point> {
+    point_cloud: &'a PointCloud<P>,
+    root: Option<NonNull<Node<'a, P::Data>>>,
     indices: Vec<usize>,
 }
 
-unsafe impl<'a, T: Send + Scalar, I: Send> Send for KdTree<'a, T, I> {}
-unsafe impl<'a, T: Sync + Scalar, I: Sync> Sync for KdTree<'a, T, I> {}
+unsafe impl<'a, P: Point + Send> Send for KdTree<'a, P> {}
+unsafe impl<'a, P: Point + Sync> Sync for KdTree<'a, P> {}
 
-impl<'a, T: RealField, I> KdTree<'a, T, I> {
-    pub fn insert(&mut self, index: usize, pivot: &'a Vector4<T>) {
+impl<'a, P: Point> KdTree<'a, P>
+where
+    P::Data: RealField,
+{
+    pub fn insert(&mut self, index: usize, pivot: &'a Vector4<P::Data>) {
         match self.root {
             Some(mut root) => unsafe { root.as_mut() }.insert(index, pivot),
             None => {
@@ -36,11 +39,14 @@ impl<'a, T: RealField, I> KdTree<'a, T, I> {
     }
 }
 
-impl<'a, T: RealField, I> KdTree<'a, T, I> {
+impl<'a, P: Point> KdTree<'a, P>
+where
+    P::Data: RealField,
+{
     pub fn search_typed(
         &self,
-        pivot: &Vector4<T>,
-        result: &mut impl ResultSet<Key = T, Value = usize>,
+        pivot: &Vector4<P::Data>,
+        result: &mut impl ResultSet<Key = P::Data, Value = usize>,
     ) {
         if let Some(root) = self.root {
             unsafe { root.as_ref() }.search(pivot, result)
@@ -49,8 +55,8 @@ impl<'a, T: RealField, I> KdTree<'a, T, I> {
 
     pub fn search_exact_typed(
         &self,
-        pivot: &Vector4<T>,
-        result: &mut impl ResultSet<Key = T, Value = usize>,
+        pivot: &Vector4<P::Data>,
+        result: &mut impl ResultSet<Key = P::Data, Value = usize>,
     ) {
         if let Some(root) = self.root {
             unsafe { root.as_ref() }.search_exact(pivot, result)
@@ -58,7 +64,7 @@ impl<'a, T: RealField, I> KdTree<'a, T, I> {
     }
 }
 
-impl<'a, T: Scalar, I> Drop for KdTree<'a, T, I> {
+impl<'a, P: Point> Drop for KdTree<'a, P> {
     fn drop(&mut self) {
         if let Some(mut root) = self.root {
             unsafe {
@@ -69,8 +75,11 @@ impl<'a, T: Scalar, I> Drop for KdTree<'a, T, I> {
     }
 }
 
-impl<'a, T: RealField, I> KdTree<'a, T, I> {
-    pub fn new(point_cloud: &'a PointCloud<Point3Infoed<T, I>>) -> Self {
+impl<'a, P: Point> KdTree<'a, P>
+where
+    P::Data: RealField,
+{
+    pub fn new(point_cloud: &'a PointCloud<P>) -> Self {
         assert!(!point_cloud.is_empty());
 
         let mut indices = (0..point_cloud.len()).collect::<Vec<_>>();
@@ -83,12 +92,20 @@ impl<'a, T: RealField, I> KdTree<'a, T, I> {
     }
 }
 
-impl<'a, T: RealField, I> pcc_common::search::Searcher<'a, T, I> for KdTree<'a, T, I> {
-    fn point_cloud(&self) -> &'a PointCloud<Point3Infoed<T, I>> {
+impl<'a, P: Point> pcc_common::search::Searcher<'a, P> for KdTree<'a, P>
+where
+    P::Data: RealField,
+{
+    fn point_cloud(&self) -> &'a PointCloud<P> {
         self.point_cloud
     }
 
-    fn search(&self, pivot: &Vector4<T>, ty: SearchType<T>, result: &mut Vec<(usize, T)>) {
+    fn search(
+        &self,
+        pivot: &Vector4<P::Data>,
+        ty: SearchType<P::Data>,
+        result: &mut Vec<(usize, P::Data)>,
+    ) {
         result.clear();
         match ty {
             SearchType::Knn(num) => {
@@ -104,7 +121,12 @@ impl<'a, T: RealField, I> pcc_common::search::Searcher<'a, T, I> for KdTree<'a, 
         }
     }
 
-    fn search_exact(&self, pivot: &Vector4<T>, ty: SearchType<T>, result: &mut Vec<(usize, T)>) {
+    fn search_exact(
+        &self,
+        pivot: &Vector4<P::Data>,
+        ty: SearchType<P::Data>,
+        result: &mut Vec<(usize, P::Data)>,
+    ) {
         result.clear();
         match ty {
             SearchType::Knn(num) => {
