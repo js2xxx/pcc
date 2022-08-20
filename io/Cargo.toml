@@ -7,5 +7,7 @@ version = "0.1.0"
 # Local crates
 pcc-common = {path = "../common"}
 # External crates
+log = "0"
 lzf = "0"
 nalgebra = "0"
+num = "0"

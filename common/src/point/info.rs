@@ -1,3 +1,4 @@
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FieldInfo {
     pub name: &'static str,
     pub offset: usize,
@@ -29,7 +30,7 @@ impl FieldInfo {
 }
 
 pub trait PointFields {
-    type Iter: Iterator<Item = FieldInfo>;
+    type Iter: Iterator<Item = FieldInfo> + Clone;
 
     fn fields() -> Self::Iter;
 }

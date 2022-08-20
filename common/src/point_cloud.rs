@@ -106,6 +106,18 @@ impl<P> PointCloud<P> {
             bounded: true,
         }
     }
+
+    /// # Safety
+    ///
+    /// The caller must ensure that the points in the cloud are all `bounded`
+    /// and the length of `storage` is divisible by `width`.
+    pub unsafe fn from_raw_parts(storage: Vec<P>, width: usize, bounded: bool) -> Self {
+        PointCloud {
+            storage,
+            width,
+            bounded,
+        }
+    }
 }
 
 impl<P: Clone> PointCloud<P> {

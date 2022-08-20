@@ -152,6 +152,7 @@ impl PcdFieldType {
 #[derive(Debug, Clone, PartialEq)]
 pub struct PcdHeader {
     pub fields: Vec<PcdField>,
+    pub rec_size: usize,
     pub width: usize,
     pub height: usize,
     pub viewpoint_origin: Vector3<f32>,
@@ -256,9 +257,11 @@ impl PcdHeader {
                 _ => {}
             }
         }
+        let rec_size = fields.iter().fold(0, |acc, field| acc + field.count * field.ty.size());
 
         Ok(PcdHeader {
             fields,
+            rec_size,
             width: width.unwrap(),
             height: height.unwrap(),
             viewpoint_origin,

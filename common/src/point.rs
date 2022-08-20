@@ -142,10 +142,14 @@ pub trait PointNormal: Point {
 
     fn curvature(&self) -> Self::Data;
 
-    fn set_curvature(&mut self, curvature: Self::Data);
+    fn curvature_mut(&mut self) -> &mut Self::Data;
+    #[inline]
+    fn set_curvature(&mut self, curvature: Self::Data) {
+        *self.curvature_mut() = curvature;
+    }
     #[inline]
     fn with_curvature(mut self, curvature: Self::Data) -> Self {
-        self.set_curvature(curvature);
+        *self.curvature_mut() = curvature;
         self
     }
 
@@ -209,8 +213,10 @@ pub trait PointRange: Point {
     fn range(&self) -> Self::Data;
 
     fn range_mut(&mut self) -> &mut Self::Data;
-
-    fn set_range(&mut self, range: Self::Data);
+    #[inline]
+    fn set_range(&mut self, range: Self::Data) {
+        *self.range_mut() = range;
+    }
     #[inline]
     fn with_range(mut self, range: Self::Data) -> Self {
         self.set_range(range);

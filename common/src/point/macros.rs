@@ -88,8 +88,8 @@ macro_rules! __define_point {
             }
 
             #[inline]
-            fn set_curvature(&mut self, curvature: $data) {
-                self.0[$curvature_index] = curvature;
+            fn curvature_mut(&mut self) -> &mut $data {
+                &mut self.0[$curvature_index]
             }
 
             #[inline]
@@ -151,11 +151,6 @@ macro_rules! __define_point {
             }
 
             #[inline]
-            fn set_range(&mut self, range: $data) {
-                self.0[$index] = range;
-            }
-
-            #[inline]
             fn fields() -> array::IntoIter<FieldInfo, 1> {
                 [FieldInfo::single("range", $index)].into_iter()
             }
@@ -190,7 +185,7 @@ macro_rules! __define_point {
         )*)?
 
         impl PointFields for $type {
-            type Iter = impl Iterator<Item = FieldInfo>;
+            type Iter = impl Iterator<Item = FieldInfo> + Clone;
 
             #[inline]
             fn fields() -> Self::Iter {
