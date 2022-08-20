@@ -1,4 +1,4 @@
-use std::{error::Error, io::BufRead};
+use std::{any::TypeId, error::Error, io::BufRead};
 
 use nalgebra::{Quaternion, Vector3};
 
@@ -16,6 +16,18 @@ impl Default for PcdField {
             ty: PcdFieldType::F32,
             count: 1,
         }
+    }
+}
+
+impl TryFrom<pcc_common::point::FieldInfo> for PcdField {
+    type Error = TypeId;
+
+    fn try_from(field: pcc_common::point::FieldInfo) -> Result<Self, Self::Error> {
+        Ok(PcdField {
+            name: field.name.to_string(),
+            ty: PcdFieldType::from_type_id(field.ty).ok_or(field.ty)?,
+            count: field.len,
+        })
     }
 }
 
@@ -105,6 +117,24 @@ pub enum PcdFieldType {
 }
 
 impl PcdFieldType {
+    pub fn from_type_id(ty: TypeId) -> Option<Self> {
+        Some(match ty {
+            ty if ty == TypeId::of::<u8>() => Self::U8,
+            ty if ty == TypeId::of::<i8>() => Self::I8,
+            ty if ty == TypeId::of::<u16>() => Self::U16,
+            ty if ty == TypeId::of::<i16>() => Self::I16,
+            ty if ty == TypeId::of::<u32>() => Self::U32,
+            ty if ty == TypeId::of::<i32>() => Self::I32,
+            ty if ty == TypeId::of::<f32>() => Self::F32,
+            ty if ty == TypeId::of::<u64>() => Self::U64,
+            ty if ty == TypeId::of::<i64>() => Self::I64,
+            ty if ty == TypeId::of::<f64>() => Self::F64,
+            ty if ty == TypeId::of::<u128>() => Self::U128,
+            ty if ty == TypeId::of::<i128>() => Self::I128,
+            _ => return None,
+        })
+    }
+
     pub fn size(&self) -> usize {
         use PcdFieldType::*;
         match self {
@@ -113,6 +143,15 @@ impl PcdFieldType {
             U32 | I32 | F32 => 4,
             U64 | I64 | F64 => 8,
             U128 | I128 => 16,
+        }
+    }
+
+    pub fn type_str(&self) -> &'static str {
+        use PcdFieldType::*;
+        match self {
+            U8 | U16 | U32 | U64 | U128 => "U",
+            I8 | I16 | I32 | I64 | I128 => "I",
+            F32 | F64 => "F",
         }
     }
 
@@ -257,7 +296,7 @@ impl PcdHeader {
                 _ => {}
             }
         }
-        let rec_size = fields.iter().fold(0, |acc, field| acc + field.count * field.ty.size());
+        let rec_size = { fields.iter() }.fold(0, |acc, field| acc + field.count * field.ty.size());
 
         Ok(PcdHeader {
             fields,

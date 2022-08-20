@@ -17,7 +17,7 @@ pub use self::{
 };
 
 pub trait Point: Debug + Clone + PartialEq + PartialOrd + Default {
-    type Data: Scalar;
+    type Data: Scalar + 'static;
     type Dim: Unsigned + ToConst;
 
     fn coords(&self) -> &Vector4<Self::Data>;
@@ -52,9 +52,9 @@ pub trait Point: Debug + Clone + PartialEq + PartialOrd + Default {
     #[inline]
     fn fields() -> array::IntoIter<FieldInfo, 3> {
         [
-            FieldInfo::single("x", 0),
-            FieldInfo::single("y", 1),
-            FieldInfo::single("z", 2),
+            FieldInfo::single::<Self::Data>("x", 0),
+            FieldInfo::single::<Self::Data>("y", 1),
+            FieldInfo::single::<Self::Data>("z", 2),
         ]
         .into_iter()
     }

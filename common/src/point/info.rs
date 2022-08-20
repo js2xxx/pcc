@@ -1,6 +1,9 @@
+use std::any::TypeId;
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FieldInfo {
     pub name: &'static str,
+    pub ty: TypeId,
     pub offset: usize,
     pub len: usize,
     pub space_len: usize,
@@ -8,9 +11,10 @@ pub struct FieldInfo {
 
 impl FieldInfo {
     #[inline]
-    pub const fn single(name: &'static str, offset: usize) -> Self {
+    pub const fn single<T: 'static>(name: &'static str, offset: usize) -> Self {
         FieldInfo {
             name,
+            ty: TypeId::of::<T>(),
             offset,
             len: 1,
             space_len: 1,
@@ -18,10 +22,11 @@ impl FieldInfo {
     }
 
     #[inline]
-    pub fn dim3(name: &'static str, offset: usize) -> Self {
+    pub fn dim3<T: 'static>(name: &'static str, offset: usize) -> Self {
         assert_eq!(offset % 4, 0);
         FieldInfo {
             name,
+            ty: TypeId::of::<T>(),
             offset,
             len: 3,
             space_len: 4,

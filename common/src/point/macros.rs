@@ -59,7 +59,7 @@ macro_rules! __define_point {
 
             #[inline]
             fn fields() -> array::IntoIter<FieldInfo, 1> {
-                [FieldInfo::single("rgb rgba", $index)].into_iter()
+                [FieldInfo::single::<Self::Data>("rgb rgba", $index)].into_iter()
             }
         }
     };
@@ -95,8 +95,8 @@ macro_rules! __define_point {
             #[inline]
             fn fields() -> array::IntoIter<FieldInfo, 2> {
                 [
-                    FieldInfo::dim3("normal", $normal_index),
-                    FieldInfo::single("curvature", $curvature_index),
+                    FieldInfo::dim3::<Self::Data>("normal", $normal_index),
+                    FieldInfo::single::<Self::Data>("curvature", $curvature_index),
                 ]
                 .into_iter()
             }
@@ -116,7 +116,7 @@ macro_rules! __define_point {
 
             #[inline]
             fn fields() -> array::IntoIter<FieldInfo, 1> {
-                [FieldInfo::single("intensity", $index)].into_iter()
+                [FieldInfo::single::<Self::Data>("intensity", $index)].into_iter()
             }
         }
     };
@@ -134,7 +134,7 @@ macro_rules! __define_point {
 
             #[inline]
             fn fields() -> array::IntoIter<FieldInfo, 1> {
-                [FieldInfo::single("label", $index)].into_iter()
+                [FieldInfo::single::<Self::Data>("label", $index)].into_iter()
             }
         }
     };
@@ -152,7 +152,7 @@ macro_rules! __define_point {
 
             #[inline]
             fn fields() -> array::IntoIter<FieldInfo, 1> {
-                [FieldInfo::single("range", $index)].into_iter()
+                [FieldInfo::single::<Self::Data>("range", $index)].into_iter()
             }
         }
     };
@@ -170,7 +170,7 @@ macro_rules! __define_point {
 
             #[inline]
             fn fields() -> array::IntoIter<FieldInfo, 1> {
-                [FieldInfo::dim3("viewpoint", $index)].into_iter()
+                [FieldInfo::dim3::<Self::Data>("viewpoint", $index)].into_iter()
             }
         }
     };
