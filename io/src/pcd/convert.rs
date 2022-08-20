@@ -8,7 +8,7 @@ use pcc_common::{
     point_cloud::PointCloud,
 };
 
-use super::{Pcd, PcdData, PcdField, PcdFieldType, PcdHeader};
+use super::{Pcd, PcdData, PcdField, PcdFieldData, PcdFieldType, PcdHeader};
 
 pub struct Viewpoint {
     pub origin: Vector3<f32>,
@@ -20,16 +20,15 @@ impl Pcd {
         point_cloud: &PointCloud<P>,
         viewpoint: &Viewpoint,
         data_type: PcdData,
-    ) -> Result<Self, Box<dyn Error>>
+    ) -> Self
     where
         P: Point + PointFields,
+        P::Data: PcdFieldData,
     {
         let fields = <P as PointFields>::fields();
-        let pcd_fields = fields
-            .clone()
-            .map(PcdField::try_from)
-            .try_collect::<Vec<_>>()
-            .map_err(|ty| format!("Erroneous point data type: {:?}", ty))?;
+        let pcd_fields = { fields.clone() }
+            .map(PcdField::from_info::<P::Data>)
+            .collect::<Vec<_>>();
 
         let rec_size =
             { pcd_fields.iter() }.fold(0, |acc, field| acc + field.count * field.ty.size());
@@ -59,11 +58,11 @@ impl Pcd {
             }
         }
 
-        Ok(Pcd {
+        Pcd {
             header,
             finite: point_cloud.is_bounded(),
             data,
-        })
+        }
     }
 
     pub fn to_point_cloud<P>(self) -> Result<(PointCloud<P>, Viewpoint), Box<dyn Error>>

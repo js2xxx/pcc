@@ -2,9 +2,13 @@ mod convert;
 mod read;
 mod write;
 
-use std::{any::TypeId, error::Error, io::{BufRead, Write}};
+use std::{
+    any::TypeId,
+    error::Error,
+    io::{BufRead, Write},
+};
 
-use nalgebra::{ComplexField, Quaternion, Vector3};
+use nalgebra::{ComplexField, Quaternion, Scalar, Vector3};
 use pcc_common::{
     point::{Point, PointFields},
     point_cloud::PointCloud,
@@ -29,15 +33,13 @@ impl Default for PcdField {
     }
 }
 
-impl TryFrom<pcc_common::point::FieldInfo> for PcdField {
-    type Error = TypeId;
-
-    fn try_from(field: pcc_common::point::FieldInfo) -> Result<Self, Self::Error> {
-        Ok(PcdField {
+impl PcdField {
+    pub fn from_info<T: PcdFieldData>(field: pcc_common::point::FieldInfo) -> Self {
+        PcdField {
             name: field.name.to_string(),
-            ty: PcdFieldType::from_type_id(field.ty).ok_or(field.ty)?,
+            ty: T::FIELD_TYPE,
             count: field.len,
-        })
+        }
     }
 }
 
@@ -56,6 +58,24 @@ pub enum PcdFieldType {
     U128,
     I128,
 }
+
+pub trait PcdFieldData: Scalar {
+    const FIELD_TYPE: PcdFieldType;
+}
+
+macro_rules! impl_pcd_field_data {
+    ($($type:ty => $value:ident),*) => {
+        $(
+            impl PcdFieldData for $type {
+                const FIELD_TYPE: PcdFieldType = PcdFieldType:: $value;
+            }
+        )*
+    };
+}
+impl_pcd_field_data!(
+    u8 => U8, i8 => I8, u16 => U16, i16 => I16, u32 => U32, i32 => I32, f32 => F32,
+    u64 => U64, i64 => I64, f64 => F64, u128 => U128, i128 => I128
+);
 
 impl PcdFieldType {
     pub fn from_type_id(ty: TypeId) -> Option<Self> {
@@ -184,11 +204,27 @@ impl Pcd {
 }
 
 #[inline]
-pub fn read_pcd<P, R: BufRead>(reader: R) -> Result<(PointCloud<P>, Viewpoint), Box<dyn Error>>
+pub fn read_pcd<P, R>(reader: R) -> Result<(PointCloud<P>, Viewpoint), Box<dyn Error>>
 where
+    R: BufRead,
     P: Point + PointFields,
     P::Data: ComplexField,
 {
     let pcd = Pcd::read(reader)?;
     pcd.to_point_cloud()
+}
+
+#[inline]
+pub fn write_pcd<P, W>(
+    point_cloud: &PointCloud<P>,
+    viewpoint: &Viewpoint,
+    data_type: PcdData,
+    writer: W,
+) -> Result<(), Box<dyn Error>>
+where
+    W: Write,
+    P: Point + PointFields,
+    P::Data: PcdFieldData,
+{
+    Pcd::from_point_cloud(point_cloud, viewpoint, data_type).write(writer)
 }

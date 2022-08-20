@@ -17,7 +17,7 @@ pub use self::{
 };
 
 pub trait Point: Debug + Clone + PartialEq + PartialOrd + Default {
-    type Data: Scalar + 'static;
+    type Data: Scalar;
     type Dim: Unsigned + ToConst;
 
     fn coords(&self) -> &Vector4<Self::Data>;
