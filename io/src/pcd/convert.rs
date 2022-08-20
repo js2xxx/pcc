@@ -77,7 +77,7 @@ impl Pcd {
                 .collect::<HashMap<_, _>>();
             for pcd_field in self.header.fields {
                 let entry = match &*pcd_field.name {
-                    "rgb" | "rgba" => fields.get_mut("rgb,rgba"),
+                    "rgb" => fields.get_mut("rgba"),
                     name => fields.get_mut(name),
                 };
                 if let Some((_, pcds)) = entry {

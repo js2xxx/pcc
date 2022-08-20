@@ -59,7 +59,7 @@ macro_rules! __define_point {
 
             #[inline]
             fn fields() -> array::IntoIter<FieldInfo, 1> {
-                [FieldInfo::single::<Self::Data>("rgb rgba", $index)].into_iter()
+                [FieldInfo::single::<Self::Data>("rgba", $index)].into_iter()
             }
         }
     };
