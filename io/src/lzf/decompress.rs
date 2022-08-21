@@ -10,13 +10,6 @@ use super::{LzfError, LzfResult};
 /// (i.e. the original length of the data) is returned.
 ///
 /// If an error in the compressed data is detected, DataCorrupted is returned.
-///
-/// Example:
-///
-/// ```rust,no_run
-/// let data = "[your-compressed-data]";
-/// let decompressed = lzf::decompress(data.as_bytes(), 10);
-/// ```
 pub fn decompress(data: &[u8], out_len_should: usize) -> LzfResult<Vec<u8>> {
     let mut current_offset = 0;
 

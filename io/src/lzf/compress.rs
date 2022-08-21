@@ -38,13 +38,6 @@ fn not(i: i32) -> i32 {
 /// The buffer is always set to the same size as the input buffer.
 /// If that is not enough to hold the lzf-compressed data,
 /// an error will be returned.
-///
-/// Example:
-///
-/// ```rust
-/// let data = "foobar";
-/// let compressed = lzf::compress(data.as_bytes());
-/// ```
 pub fn compress(data: &[u8]) -> LzfResult<Vec<u8>> {
     let in_len = data.len();
     let out_buf_len = in_len;

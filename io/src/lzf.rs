@@ -7,17 +7,6 @@
 //!
 //! This Rust library is a rewrite of the original C code
 //! and fully compatible with compressed data from the C code (and vice versa).
-//!
-//! # Basic Operation
-//!
-//! ```rust,no_run
-//! # use lzf;
-//! let data = "foobar";
-//!
-//! let compressed = lzf::compress(data.as_bytes()).unwrap();
-//!
-//! let decompressed = lzf::decompress(&compressed, data.len()).unwrap();
-//! ```
 
 use std::fmt;
 
