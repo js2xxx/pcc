@@ -1,12 +1,20 @@
 macro_rules! __define_point {
     (@ORIG, $type:ident < $data:ident, $num:ident >) => {
-        #[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Default)]
+        #[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
         #[repr(align(16))]
         pub struct $type(SVector<$data, { <$num>::USIZE }>);
 
         impl From<$type> for SVector<$data, { <$num>::USIZE }> {
             fn from(s: $type) -> Self {
                 s.0
+            }
+        }
+
+        impl Default for $type {
+            fn default() -> Self {
+                let mut ret = $type(SVector::default());
+                ret.coords_mut().w = 1.;
+                ret
             }
         }
 

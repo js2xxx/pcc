@@ -117,6 +117,7 @@ where
 
             offset += field_info.count * size;
         }
+        writeln!(writer)?;
     }
 
     Ok(())
@@ -133,23 +134,23 @@ where
     let record_size = header.rec_size;
     let record_num = data.len() / record_size;
 
-    let mut temp = vec![0; data.len()];
+    let mut temp = Vec::with_capacity(data.len());
     {
-        let mut temp = &mut temp[..];
         let mut offset = 0;
         for field in &header.fields {
-            let field_size = field.ty.size();
-            for (record_index, dst) in temp.chunks_mut(field_size).enumerate() {
-                dst.copy_from_slice(&data[(record_size * record_index + offset)..][..field_size]);
+            let field_size = field.ty.size() * field.count;
+            for record_index in 0..record_num {
+                temp.extend_from_slice(
+                    &data[(record_size * record_index + offset)..][..field_size],
+                );
             }
             offset += field_size;
-            temp = &mut temp[(record_num * field_size)..];
         }
     }
 
-    let out = lzf::compress(&temp).map_err(|_| "Compression error")?;
-    write!(writer, "{}", out.len())?;
-    write!(writer, "{}", data.len())?;
+    let out = crate::lzf::compress(&temp).map_err(|_| "Compression error")?;
+    writer.write_all(&(out.len() as u32).to_ne_bytes())?;
+    writer.write_all(&(data.len() as u32).to_ne_bytes())?;
     writer.write_all(&out)?;
     Ok(())
 }

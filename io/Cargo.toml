@@ -8,6 +8,8 @@ version = "0.1.0"
 pcc-common = {path = "../common"}
 # External crates
 log = "0"
-lzf = "0"
 nalgebra = "0"
 num = "0"
+
+[dev-dependencies]
+tempfile = "3"

@@ -1,5 +1,5 @@
 use core::slice;
-use std::{collections::HashMap, error::Error, mem};
+use std::{error::Error, mem};
 
 use nalgebra::{ComplexField, Quaternion, Vector3};
 use num::{FromPrimitive, One};
@@ -10,6 +10,7 @@ use pcc_common::{
 
 use super::{Pcd, PcdData, PcdField, PcdFieldData, PcdFieldType, PcdHeader};
 
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Viewpoint {
     pub origin: Vector3<f32>,
     pub quat: Quaternion<f32>,
@@ -44,8 +45,7 @@ impl Pcd {
         };
 
         let mut data = Vec::with_capacity(rec_size * header.width * header.height);
-        for (point, data) in point_cloud.iter().zip(data.chunks_mut(rec_size)) {
-            let mut dst_offset = 0;
+        for point in point_cloud.iter() {
             let src_slice = point.as_slice();
             for field in fields.clone() {
                 let field_size = field.len * mem::size_of::<P::Data>();
@@ -53,8 +53,7 @@ impl Pcd {
                     let src = &src_slice[field.offset..][..field.len];
                     unsafe { slice::from_raw_parts(src.as_ptr() as *const u8, field_size) }
                 };
-                data[dst_offset..][..field_size].copy_from_slice(src);
-                dst_offset += field_size;
+                data.extend_from_slice(src);
             }
         }
 
@@ -72,14 +71,15 @@ impl Pcd {
     {
         let fields = {
             let mut fields = <P as PointFields>::fields()
-                .map(|field| (field.name, (field, None)))
-                .collect::<HashMap<_, _>>();
+                .map(|field| (field, None))
+                .collect::<Vec<_>>();
+            fields.sort_by_key(|(field, _)| field.name);
             for pcd_field in self.header.fields {
                 let entry = match &*pcd_field.name {
-                    "rgb" => fields.get_mut("rgba"),
-                    name => fields.get_mut(name),
+                    "rgb" => fields.binary_search_by_key(&"rgba", |(field, _)| field.name),
+                    name => fields.binary_search_by_key(&name, |(field, _)| field.name),
                 };
-                if let Some((_, pcds)) = entry {
+                if let Ok((_, pcds)) = entry.map(|index| &mut fields[index]) {
                     if let Some(old) = pcds.replace(pcd_field) {
                         return Err(format!(
                             "Found multiple fields in PCD file matching one field in the point cloud: {:?}", 
@@ -88,12 +88,13 @@ impl Pcd {
                     }
                 }
             }
-            if fields.values().any(|(_, pcd)| pcd.is_none()) {
+            if fields.iter().any(|(_, pcd)| pcd.is_none()) {
                 log::warn!(
                     "Found a field in the point cloud with no matching field in the PCD file, 
 keeping with default values"
                 )
             }
+            fields.sort_by_key(|(field, _)| field.offset);
             fields
         };
 
@@ -103,7 +104,7 @@ keeping with default values"
             let dst_slice = dst.as_mut_slice();
 
             for (field, pcd_field) in
-                { fields.values() }.map(|(field, pcd_field)| (field, pcd_field.as_ref().unwrap()))
+                { fields.iter() }.map(|(field, pcd_field)| (field, pcd_field.as_ref().unwrap()))
             {
                 let dst = &mut dst_slice[field.offset..][..field.len];
                 let src = &src[pcd_offset..][..(pcd_field.ty.size() * pcd_field.count)];

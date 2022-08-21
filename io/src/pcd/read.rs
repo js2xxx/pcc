@@ -85,7 +85,12 @@ impl PcdHeader {
         let data_type;
 
         loop {
-            reader.read_line(&mut string)?;
+            string.clear();
+            let num = reader.read_line(&mut string)?;
+            string.pop();
+            if num == 0 {
+                return Err("Unexpected EOF".into());
+            }
 
             if string.starts_with('#') {
                 continue;
@@ -234,22 +239,22 @@ fn read_bytes<R: BufRead, const COMPRESS: bool>(
         output.resize(compressed_size, 0);
         reader.read_exact(output)?;
 
-        let mut temp = &*lzf::decompress(output, uncompressed_size as usize)
+        let temp = &*crate::lzf::decompress(output, uncompressed_size as usize)
             .map_err(|_| "Decompression error")?;
         let size = uncompressed_size;
-        output.resize(size, 0);
+        output.clear();
+        output.reserve(size);
 
-        let record_size = fields.iter().fold(0, |acc, field| acc + field.ty.size());
+        let record_size = fields.iter().fold(0, |acc, field| acc + field.ty.size() * field.count);
         let record_num = size / record_size;
 
-        let mut offset = 0;
-        for field in fields {
-            let field_size = field.ty.size();
-            for (record_index, src) in temp.chunks(field_size).enumerate().take(record_num) {
-                output[(record_size * record_index + offset)..][..field_size].copy_from_slice(src);
+        for record_index in 0..record_num {
+            let mut offset = 0;
+            for field in fields {
+                let field_size = field.ty.size() * field.count;
+                output.extend_from_slice(&temp[(offset + field_size * record_index)..][..field_size]);
+                offset += field_size * record_num;
             }
-            offset += field_size;
-            temp = &temp[(record_num * field_size)..];
         }
     } else {
         reader.read_to_end(output)?;

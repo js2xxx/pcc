@@ -228,3 +228,51 @@ where
 {
     Pcd::from_point_cloud(point_cloud, viewpoint, data_type).write(writer)
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io::{BufReader, Seek, SeekFrom};
+
+    use nalgebra::Vector4;
+    use pcc_common::{
+        point::{Point, Point3LN, PointLabel, PointNormal},
+        point_cloud::PointCloud,
+    };
+
+    use super::PcdData;
+    use crate::pcd::Pcd;
+
+    #[test]
+    fn test_io_pcd() {
+        let pc = PointCloud::from_vec(
+            vec![
+                Point3LN::default()
+                    .with_coords(nalgebra::Point3::new(2.0, 3.0, 4.0).to_homogeneous())
+                    .with_normal(Vector4::new(-1., -2., -3., 0.))
+                    .with_curvature(0.5)
+                    .with_label(0xABCD);
+                4
+            ],
+            2,
+        );
+
+        let mut file = tempfile::tempfile().expect("Failed to open test file");
+
+        let pcd = Pcd::from_point_cloud(&pc, &Default::default(), PcdData::BinaryCompressed);
+
+        pcd.write(&mut file).expect("Failed to write test file");
+
+        file.seek(SeekFrom::Start(0))
+            .expect("Failed to seek to start");
+
+        let pcd2 = Pcd::read(BufReader::new(file)).expect("Failed to read test file");
+
+        assert_eq!(pcd, pcd2);
+
+        let (pc2, _) = pcd2
+            .to_point_cloud()
+            .expect("Failed to convert point cloud");
+
+        assert_eq!(pc, pc2);
+    }
+}
