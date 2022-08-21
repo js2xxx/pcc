@@ -1,11 +1,12 @@
 mod creation;
+mod surface;
 
 use std::{mem, ops::Deref};
 
-pub use creation::CreateOptions;
-use nalgebra::{Affine3, RealField, Vector2, Vector4};
+use nalgebra::{Affine3, ComplexField, RealField, Vector2, Vector4};
 use num::{Float, ToPrimitive};
 
+pub use self::{creation::CreateOptions, surface::SurfaceInfo};
 use crate::{point::PointRange, point_cloud::PointCloud};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -102,7 +103,7 @@ where
     P: PointRange,
     P::Data: Float,
 {
-    P::default().with_range(P::Data::infinity())
+    P::default().with_range(-P::Data::infinity())
 }
 
 impl<P> RangeImage<P>
@@ -161,6 +162,41 @@ where
 
 impl<P: PointRange> RangeImage<P>
 where
+    P::Data: RealField + ToPrimitive,
+{
+    pub fn image_to_point(
+        &self,
+        image: &Vector2<P::Data>,
+        range: Option<P::Data>,
+    ) -> Vector4<P::Data> {
+        let range = match range {
+            Some(range) => range,
+            None => {
+                let [[x, y]] = image.map(|x| x.round().to_usize().unwrap()).data.0;
+                self.point_cloud[(x, y)].range()
+            }
+        };
+        image_to_point(
+            image,
+            range,
+            &self.transform,
+            &self.angular_resolution,
+            &self.image_offset,
+        )
+    }
+
+    pub fn point_to_image(&self, point: &Vector4<P::Data>) -> (Vector2<P::Data>, P::Data) {
+        point_to_image(
+            point,
+            &self.inverse_transform,
+            &self.angular_resolution,
+            &self.image_offset,
+        )
+    }
+}
+
+impl<P: PointRange> RangeImage<P>
+where
     P::Data: RealField + Float,
 {
     pub fn crop(&mut self, border_size: usize, &[xmin, xmax, ymin, ymax]: &[usize; 4]) {
@@ -187,36 +223,6 @@ where
         }
 
         self.point_cloud.reinterpret(width)
-    }
-
-    pub fn image_to_point(
-        &self,
-        image: &Vector2<P::Data>,
-        range: Option<P::Data>,
-    ) -> Vector4<P::Data> {
-        let range = match range {
-            Some(range) => range,
-            None => {
-                let [[x, y]] = image.map(|x| x.round().to_usize().unwrap()).data.0;
-                self.point_cloud[y * self.point_cloud.width() + x].range()
-            }
-        };
-        image_to_point(
-            image,
-            range,
-            &self.transform,
-            &self.angular_resolution,
-            &self.image_offset,
-        )
-    }
-
-    pub fn point_to_image(&self, point: &Vector4<P::Data>) -> (Vector2<P::Data>, P::Data) {
-        point_to_image(
-            point,
-            &self.inverse_transform,
-            &self.angular_resolution,
-            &self.image_offset,
-        )
     }
 
     pub fn integrate_far_ranges<'a, Iter>(&mut self, far_ranges: Iter)
