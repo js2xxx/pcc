@@ -230,7 +230,7 @@ where
     }
 }
 
-impl<'a, P: Point> pcc_common::search::Searcher<'a, P> for OcTreePcSearch<'a, P>
+impl<'a, P: Point> pcc_common::search::Search<'a, P> for OcTreePcSearch<'a, P>
 where
     P::Data: RealField + ToPrimitive,
 {

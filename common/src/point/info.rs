@@ -32,7 +32,7 @@ impl FieldInfo {
     }
 }
 
-pub trait PointFields {
+pub trait DataFields {
     type Iter: Iterator<Item = FieldInfo> + Clone;
 
     fn fields() -> Self::Iter;

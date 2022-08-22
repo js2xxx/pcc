@@ -13,7 +13,7 @@ use typenum::{Unsigned, U10, U4, U5, U8, U9};
 
 pub use self::{
     centroid::{Centroid, CentroidBuilder},
-    info::{FieldInfo, PointFields},
+    info::{FieldInfo, DataFields},
 };
 
 pub trait Point: Debug + Clone + PartialEq + PartialOrd + Default {
@@ -130,7 +130,9 @@ pub trait PointRgba: Point {
     }
 }
 
-pub trait PointNormal: Point {
+pub trait Normal: Debug + Clone + PartialEq + PartialOrd + Default {
+    type Data: Scalar;
+
     fn normal(&self) -> &Vector4<Self::Data>;
 
     fn normal_mut(&mut self) -> &mut Vector4<Self::Data>;
@@ -176,6 +178,9 @@ pub trait PointNormal: Point {
         self.set_curvature(accum.1 / num)
     }
 }
+
+pub trait PointNormal: Point + Normal<Data = <Self as Point>::Data> {}
+impl<T: Point + Normal<Data = <Self as Point>::Data>> PointNormal for T {}
 
 pub trait PointIntensity: Point {
     fn intensity(&self) -> Self::Data;
@@ -283,24 +288,24 @@ define_points! {
 
     #[auto_centroid]
     pub struct Point3N<f32, U9> {
-        normal: PointNormal [4, 8],
+        normal: Normal [4, 8],
     }
 
     #[auto_centroid]
     pub struct Point3RgbaN<f32, U10> {
-        normal: PointNormal [4, 8],
+        normal: Normal [4, 8],
         rgba: PointRgba [9],
     }
 
     #[auto_centroid]
     pub struct Point3IN<f32, U10> {
-        normal: PointNormal [4, 8],
+        normal: Normal [4, 8],
         intensity: PointIntensity [9],
     }
 
     #[auto_centroid]
     pub struct Point3LN<f32, U10> {
-        normal: PointNormal [4, 8],
+        normal: Normal [4, 8],
         label: PointLabel [9],
     }
 
@@ -310,6 +315,11 @@ define_points! {
 
     pub struct Point3V<f32, U8> {
         viewpoint: PointViewpoint [4],
+    }
+
+    #[non_point]
+    pub struct Normal3<f32, U4> {
+        normal: Normal [0, 3],
     }
 }
 

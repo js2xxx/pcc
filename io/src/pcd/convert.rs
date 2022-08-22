@@ -4,7 +4,7 @@ use std::{error::Error, mem};
 use nalgebra::{ComplexField, Quaternion, Vector3};
 use num::{FromPrimitive, One};
 use pcc_common::{
-    point::{Point, PointFields},
+    point::{Point, DataFields},
     point_cloud::PointCloud,
 };
 
@@ -23,10 +23,10 @@ impl Pcd {
         data_type: PcdData,
     ) -> Self
     where
-        P: Point + PointFields,
+        P: Point + DataFields,
         P::Data: PcdFieldData,
     {
-        let fields = <P as PointFields>::fields();
+        let fields = <P as DataFields>::fields();
         let pcd_fields = { fields.clone() }
             .map(PcdField::from_info::<P::Data>)
             .collect::<Vec<_>>();
@@ -66,11 +66,11 @@ impl Pcd {
 
     pub fn to_point_cloud<P>(self) -> Result<(PointCloud<P>, Viewpoint), Box<dyn Error>>
     where
-        P: Point + PointFields,
+        P: Point + DataFields,
         P::Data: ComplexField,
     {
         let fields = {
-            let mut fields = <P as PointFields>::fields()
+            let mut fields = <P as DataFields>::fields()
                 .map(|field| (field, None))
                 .collect::<Vec<_>>();
             fields.sort_by_key(|(field, _)| field.name);
@@ -198,7 +198,7 @@ keeping with default values"
 
 impl<P> TryFrom<Pcd> for (PointCloud<P>, Viewpoint)
 where
-    P: Point + PointFields,
+    P: Point + DataFields,
     P::Data: ComplexField,
 {
     type Error = Box<dyn Error>;

@@ -80,6 +80,8 @@ macro_rules! __define_point {
         $curvature_index:literal
     ) => {
         impl $trait for $type {
+            type Data = $data;
+
             #[inline]
             fn $get(&self) -> &Vector4<$data> {
                 unsafe { &*(self.0.fixed_rows::<4>($normal_index).data.ptr() as *const _) }
@@ -192,7 +194,7 @@ macro_rules! __define_point {
             __define_point!($field $field: $trait, $type<$data, $num>, $($index),*);
         )*)?
 
-        impl PointFields for $type {
+        impl DataFields for $type {
             type Iter = impl Iterator<Item = FieldInfo> + Clone;
 
             #[inline]
@@ -227,6 +229,66 @@ macro_rules! __define_point {
                     <Self::Result as $trait>::centroid_compute(
                         &mut result,
                         { accum.1. ${index()} },
+                        num
+                    );
+                )*)?
+                result
+            }
+        }
+    };
+    {
+        #[non_point]
+        $type:ident<$data:ident, $num:ident>
+        $({ $($field:ident: $trait:ident[$($index:literal),* $(,)?]),* $(,)? })?
+    } => {
+        #[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Default)]
+        #[repr(align(16))]
+        pub struct $type(SVector<$data, { <$num>::USIZE }>);
+
+        impl From<$type> for SVector<$data, { <$num>::USIZE }> {
+            fn from(s: $type) -> Self {
+                s.0
+            }
+        }
+
+        $($(
+            $(const_assert!($index < <$num>::USIZE);)*
+            __define_point!($field $field: $trait, $type<$data, $num>, $($index),*);
+        )*)?
+
+        impl DataFields for $type {
+            type Iter = impl Iterator<Item = FieldInfo> + Clone;
+
+            #[inline]
+            fn fields() -> Self::Iter {
+                [].into_iter() $($(.chain(<$type as $trait>::fields()))*)?
+            }
+        }
+    };
+    {
+        #[non_point]
+        #[auto_centroid]
+        $type:ident<$data:ident, $num:ident>
+        $({ $($field:ident: $trait:ident[$($index:literal),* $(,)?]),* $(,)? })?
+    } => {
+        __define_point!(#[non_point] $type<$data, $num> $({ $($field: $trait [$($index),*]),* })?);
+
+        impl Centroid for $type {
+            type Accumulator = ($($(<$type as $trait>::CentroidAccumulator,)*)?);
+            type Result = Self;
+
+            #[inline]
+            fn accumulate(&self, accum: &mut Self::Accumulator) {
+                $($(<Self as $trait>::centroid_accumulate(self, &mut accum. ${index()}));*)?
+            }
+
+            #[inline]
+            fn compute(accum: Self::Accumulator, num: usize) -> Self::Result {
+                let mut result = Self::Result::default();
+                $($(
+                    <Self::Result as $trait>::centroid_compute(
+                        &mut result,
+                        { accum. ${index()} },
                         num
                     );
                 )*)?

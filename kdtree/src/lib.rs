@@ -92,7 +92,7 @@ where
     }
 }
 
-impl<'a, P: Point> pcc_common::search::Searcher<'a, P> for KdTree<'a, P>
+impl<'a, P: Point> pcc_common::search::Search<'a, P> for KdTree<'a, P>
 where
     P::Data: RealField,
 {

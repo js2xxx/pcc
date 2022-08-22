@@ -6,7 +6,7 @@ use nalgebra::{ComplexField, DVector, Scalar, Vector4};
 use pcc_common::{
     point::Point,
     point_cloud::PointCloud,
-    search::{SearchType, Searcher},
+    search::{SearchType, Search},
 };
 use rayon::{iter::ParallelIterator, prelude::IntoParallelRefIterator};
 
@@ -243,7 +243,7 @@ impl<'a, T: ComplexField, K, S> Dynamic<T, K, S> {
     where
         P: Sync + Send + Point<Data = T> + 'a,
         K: Sync + DynamicKernel<'a, P>,
-        S: Sync + Searcher<'a, P>,
+        S: Sync + Search<'a, P>,
     {
         let input = self.searcher.point_cloud();
 
@@ -270,7 +270,7 @@ impl<'a, T: ComplexField, K, S> Dynamic<T, K, S> {
     where
         P: Point<Data = T> + 'a,
         K: DynamicKernel<'a, P>,
-        S: Searcher<'a, P>,
+        S: Search<'a, P>,
     {
         let input = self.searcher.point_cloud();
 

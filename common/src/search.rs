@@ -8,7 +8,7 @@ pub enum SearchType<T> {
     Radius(T),
 }
 
-pub trait Searcher<'a, P: Point> {
+pub trait Search<'a, P: Point> {
     fn point_cloud(&self) -> &'a PointCloud<P>;
 
     fn search(
