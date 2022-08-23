@@ -10,7 +10,7 @@ use std::{
 
 use nalgebra::{ComplexField, Quaternion, Scalar, Vector3};
 use pcc_common::{
-    point::{Point, DataFields},
+    point::{Data, DataFields},
     point_cloud::PointCloud,
 };
 
@@ -207,7 +207,7 @@ impl Pcd {
 pub fn read_pcd<P, R>(reader: R) -> Result<(PointCloud<P>, Viewpoint), Box<dyn Error>>
 where
     R: BufRead,
-    P: Point + DataFields,
+    P: Data + DataFields,
     P::Data: ComplexField,
 {
     let pcd = Pcd::read(reader)?;
@@ -223,7 +223,7 @@ pub fn write_pcd<P, W>(
 ) -> Result<(), Box<dyn Error>>
 where
     W: Write,
-    P: Point + DataFields,
+    P: Data + DataFields,
     P::Data: PcdFieldData,
 {
     Pcd::from_point_cloud(point_cloud, viewpoint, data_type).write(writer)
@@ -235,7 +235,7 @@ mod tests {
 
     use nalgebra::Vector4;
     use pcc_common::{
-        point::{Point, Point3LN, PointLabel, Normal},
+        point::{Normal, Point, Point3LN, PointLabel},
         point_cloud::PointCloud,
     };
 

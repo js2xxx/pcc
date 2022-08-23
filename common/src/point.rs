@@ -13,11 +13,20 @@ use typenum::{Unsigned, U10, U4, U5, U8, U9};
 
 pub use self::{
     centroid::{Centroid, CentroidBuilder},
-    info::{FieldInfo, DataFields},
+    info::{DataFields, FieldInfo},
 };
 
-pub trait Point: Debug + Clone + PartialEq + PartialOrd + Default {
+pub trait Data: Debug + Clone + PartialEq + PartialOrd + Default {
     type Data: Scalar;
+
+    fn as_slice(&self) -> &[Self::Data];
+
+    fn as_mut_slice(&mut self) -> &mut [Self::Data];
+
+    fn is_finite(&self) -> bool;
+}
+
+pub trait Point: Data {
     type Dim: Unsigned + ToConst;
 
     fn coords(&self) -> &Vector4<Self::Data>;
@@ -29,24 +38,12 @@ pub trait Point: Debug + Clone + PartialEq + PartialOrd + Default {
         self
     }
 
-    fn as_slice(&self) -> &[Self::Data];
-
-    fn as_mut_slice(&mut self) -> &mut [Self::Data];
-
     #[inline]
     fn na_point(&self) -> nalgebra::Point3<Self::Data>
     where
         Self::Data: ComplexField,
     {
         nalgebra::Point3::from_homogeneous(self.coords().clone()).unwrap()
-    }
-
-    #[inline]
-    fn is_finite(&self) -> bool
-    where
-        Self::Data: ComplexField,
-    {
-        self.coords().iter().all(|x| x.is_finite())
     }
 
     #[inline]
@@ -179,8 +176,8 @@ pub trait Normal: Debug + Clone + PartialEq + PartialOrd + Default {
     }
 }
 
-pub trait PointNormal: Point + Normal<Data = <Self as Point>::Data> {}
-impl<T: Point + Normal<Data = <Self as Point>::Data>> PointNormal for T {}
+pub trait PointNormal: Point + Normal<Data = <Self as Data>::Data> {}
+impl<T: Point + Normal<Data = <Self as Data>::Data>> PointNormal for T {}
 
 pub trait PointIntensity: Point {
     fn intensity(&self) -> Self::Data;
@@ -348,6 +345,25 @@ impl Centroid for Point3V {
 
     fn compute(accum: Self::Accumulator, num: usize) -> Self::Result {
         Point3(accum / (num as f32))
+    }
+}
+
+impl Data for Normal3 {
+    type Data = f32;
+
+    #[inline]
+    fn as_slice(&self) -> &[Self::Data] {
+        self.0.as_slice()
+    }
+
+    #[inline]
+    fn as_mut_slice(&mut self) -> &mut [Self::Data] {
+        self.0.as_mut_slice()
+    }
+
+    #[inline]
+    fn is_finite(&self) -> bool {
+        self.normal().iter().all(|x| x.is_finite())
     }
 }
 

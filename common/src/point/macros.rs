@@ -18,8 +18,26 @@ macro_rules! __define_point {
             }
         }
 
-        impl Point for $type {
+        impl Data for $type {
             type Data = $data;
+
+            #[inline]
+            fn as_slice(&self) -> &[$data] {
+                self.0.as_slice()
+            }
+
+            #[inline]
+            fn as_mut_slice(&mut self) -> &mut [$data] {
+                self.0.as_mut_slice()
+            }
+
+            #[inline]
+            fn is_finite(&self) -> bool {
+                self.coords().iter().all(|x| x.is_finite())
+            }
+        }
+
+        impl Point for $type {
             type Dim = $num;
 
             #[inline]
@@ -30,16 +48,6 @@ macro_rules! __define_point {
             #[inline]
             fn coords_mut(&mut self) -> &mut Vector4<$data> {
                 unsafe { &mut *(self.0.data.ptr_mut() as *mut _) }
-            }
-
-            #[inline]
-            fn as_slice(&self) -> &[$data] {
-                self.0.as_slice()
-            }
-
-            #[inline]
-            fn as_mut_slice(&mut self) -> &mut [$data] {
-                self.0.as_mut_slice()
             }
         }
     };

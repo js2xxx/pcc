@@ -1,10 +1,10 @@
 use core::slice;
 use std::{error::Error, mem};
 
-use nalgebra::{ComplexField, Quaternion, Vector3};
-use num::{FromPrimitive, One};
+use nalgebra::{Quaternion, Vector3};
+use num::FromPrimitive;
 use pcc_common::{
-    point::{Point, DataFields},
+    point::{Data, DataFields},
     point_cloud::PointCloud,
 };
 
@@ -23,7 +23,7 @@ impl Pcd {
         data_type: PcdData,
     ) -> Self
     where
-        P: Point + DataFields,
+        P: Data + DataFields,
         P::Data: PcdFieldData,
     {
         let fields = <P as DataFields>::fields();
@@ -66,8 +66,8 @@ impl Pcd {
 
     pub fn to_point_cloud<P>(self) -> Result<(PointCloud<P>, Viewpoint), Box<dyn Error>>
     where
-        P: Point + DataFields,
-        P::Data: ComplexField,
+        P: Data + DataFields,
+        P::Data: FromPrimitive,
     {
         let fields = {
             let mut fields = <P as DataFields>::fields()
@@ -182,8 +182,6 @@ keeping with default values"
                 }
                 pcd_offset += src.len();
             }
-
-            dst.coords_mut().w = P::Data::one();
         }
 
         let point_cloud =
@@ -198,8 +196,8 @@ keeping with default values"
 
 impl<P> TryFrom<Pcd> for (PointCloud<P>, Viewpoint)
 where
-    P: Point + DataFields,
-    P::Data: ComplexField,
+    P: Data + DataFields,
+    P::Data: FromPrimitive,
 {
     type Error = Box<dyn Error>;
 

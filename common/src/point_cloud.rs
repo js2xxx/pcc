@@ -9,7 +9,7 @@ use nalgebra::{ComplexField, Matrix3, RealField, SVector, Vector4};
 use num::{FromPrimitive, One, Zero};
 
 use self::transforms::Transform;
-use crate::point::{Centroid, Point, PointViewpoint};
+use crate::point::{Centroid, Data, Point, PointViewpoint};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PointCloud<P> {
@@ -148,10 +148,7 @@ impl<P: Clone> PointCloud<P> {
     }
 }
 
-impl<P: Point> PointCloud<P>
-where
-    <P as Point>::Data: ComplexField,
-{
+impl<P: Data> PointCloud<P> {
     pub fn try_from_vec(storage: Vec<P>, width: usize) -> Result<Self, Vec<P>> {
         if width > 0 && storage.len() % width == 0 {
             let bounded = storage.iter().all(|p| p.is_finite());
@@ -186,7 +183,7 @@ impl<P> Default for PointCloud<P> {
 
 impl<P: Point> PointCloud<P>
 where
-    <P as Point>::Data: ComplexField,
+    <P as Data>::Data: ComplexField,
 {
     pub fn centroid_coords(&self) -> (Option<Vector4<P::Data>>, usize) {
         let (acc, num) = if self.bounded {
@@ -218,7 +215,7 @@ where
 
 impl<P: Point + Centroid> PointCloud<P>
 where
-    <P as Point>::Data: ComplexField,
+    <P as Data>::Data: ComplexField,
     <P as Centroid>::Accumulator: Default,
 {
     pub fn centroid(&self) -> (Option<P::Result>, usize) {
@@ -243,7 +240,7 @@ where
 
 impl<P: Point> PointCloud<P>
 where
-    <P as Point>::Data: ComplexField,
+    <P as Data>::Data: ComplexField,
 {
     /// Note: The result of this function is not normalized (descaled by the
     /// calculated point count); if wanted, use `cov_matrix_norm` instead.
@@ -304,7 +301,7 @@ where
 
 impl<P: Point> PointCloud<P>
 where
-    <P as Point>::Data: ComplexField,
+    <P as Data>::Data: ComplexField,
 {
     #[allow(clippy::type_complexity)]
     pub fn centroid_and_cov_matrix(&self) -> (Option<(Vector4<P::Data>, Matrix3<P::Data>)>, usize) {
@@ -386,7 +383,7 @@ where
 
 impl<P: Point> PointCloud<P>
 where
-    <P as Point>::Data: ComplexField,
+    <P as Data>::Data: ComplexField,
 {
     pub fn transform<Z: Transform<P::Data>>(&self, z: &Z, out: &mut Self) {
         out.storage
@@ -412,7 +409,7 @@ where
 
 impl<P: Point> PointCloud<P>
 where
-    <P as Point>::Data: ComplexField,
+    <P as Data>::Data: ComplexField,
 {
     pub fn demean(&self, centroid: &Vector4<P::Data>, out: &mut Self) {
         out.clone_from(self);
@@ -427,7 +424,7 @@ where
 
 impl<P: Point> PointCloud<P>
 where
-    <P as Point>::Data: RealField,
+    <P as Data>::Data: RealField,
 {
     pub fn box_select(&self, min: &Vector4<P::Data>, max: &Vector4<P::Data>) -> Vec<usize> {
         let mut indices = Vec::with_capacity(self.storage.len());
@@ -456,7 +453,7 @@ where
 
 impl<P: Point> PointCloud<P>
 where
-    <P as Point>::Data: RealField,
+    <P as Data>::Data: RealField,
 {
     /// Note: Points that are not finite (infinite, NaN, etc) are not considered
     /// into calculations.
@@ -483,7 +480,7 @@ where
 
 impl<P: Point> PointCloud<P>
 where
-    <P as Point>::Data: RealField,
+    <P as Data>::Data: RealField,
 {
     pub fn max_distance(&self, pivot: &Vector4<P::Data>) -> Option<(P::Data, Vector4<P::Data>)> {
         let pivot = pivot.xyz();
