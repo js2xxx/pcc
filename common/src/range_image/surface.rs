@@ -1,5 +1,5 @@
 use nalgebra::{ComplexField, Const, Matrix3, RealField, SymmetricEigen, Vector3, Vector4};
-use num::{Float, One, ToPrimitive, Zero};
+use num::{one, zero, Float, ToPrimitive};
 
 use super::RangeImage;
 use crate::point::PointRange;
@@ -24,7 +24,7 @@ where
         radius: usize,
         step: usize,
     ) -> Option<SymmetricEigen<P::Data, Const<3>>> {
-        let mut num = P::Data::zero();
+        let mut num = zero::<P::Data>();
         let mut mean = Vector3::zeros();
         let mut cov = Matrix3::zeros();
         for x in ((x - radius)..=(x + radius)).step_by(step) {
@@ -34,10 +34,9 @@ where
                     continue;
                 }
                 let coords = point.coords().xyz();
-                cov = (cov * num.clone() + &coords * coords.transpose())
-                    / (num.clone() + P::Data::one());
-                mean = (mean * num.clone() + &coords) / (num.clone() + P::Data::one());
-                num += P::Data::one();
+                cov = (cov * num.clone() + &coords * coords.transpose()) / (num.clone() + one());
+                mean = (mean * num.clone() + &coords) / (num.clone() + one());
+                num += one();
             }
         }
         if num.to_usize().unwrap() < 3 {
@@ -59,12 +58,12 @@ where
             .column(0)
             .into_owned();
         Some(
-            if normal.dot(&self.sensor_pose().xyz()) < P::Data::zero() {
+            if normal.dot(&self.sensor_pose().xyz()) < zero() {
                 -normal
             } else {
                 normal
             }
-            .insert_row(3, P::Data::zero()),
+            .insert_row(3, zero()),
         )
     }
 
@@ -84,12 +83,12 @@ where
         let normal = eigen.eigenvectors.column(0).into_owned();
         let curvature = eigen.eigenvalues[0].clone();
         Some((
-            if normal.dot(&self.sensor_pose().xyz()) < P::Data::zero() {
+            if normal.dot(&self.sensor_pose().xyz()) < zero() {
                 -normal
             } else {
                 normal
             }
-            .insert_row(3, P::Data::zero()),
+            .insert_row(3, zero()),
             curvature / eigen.eigenvalues.sum(),
         ))
     }
@@ -120,15 +119,14 @@ where
             vec
         };
 
-        let mut num = P::Data::zero();
+        let mut num = zero::<P::Data>();
         let mut mean = Vector3::zeros();
         let mut cov = Matrix3::zeros();
         for (_, point) in neighbors.iter().take(num_neighbors) {
             let coords = point.coords().xyz();
-            cov =
-                (cov * num.clone() + &coords * coords.transpose()) / (num.clone() + P::Data::one());
-            mean = (mean * num.clone() + &coords) / (num.clone() + P::Data::one());
-            num += P::Data::one();
+            cov = (cov * num.clone() + &coords * coords.transpose()) / (num.clone() + one());
+            mean = (mean * num.clone() + &coords) / (num.clone() + one());
+            num += one();
         }
 
         if num.to_usize().unwrap() < 3 {
@@ -144,11 +142,11 @@ where
             .then(move || {
                 for (_, point) in neighbors.iter().skip(num_neighbors) {
                     let coords = point.coords().xyz();
-                    cov = (cov * num.clone() + &coords * coords.transpose())
-                        / (num.clone() + P::Data::one());
-                    mean_all_neighbors = (mean_all_neighbors * num.clone() + &coords)
-                        / (num.clone() + P::Data::one());
-                    num += P::Data::one();
+                    cov =
+                        (cov * num.clone() + &coords * coords.transpose()) / (num.clone() + one());
+                    mean_all_neighbors =
+                        (mean_all_neighbors * num.clone() + &coords) / (num.clone() + one());
+                    num += one();
                 }
                 cov -= &mean_all_neighbors * mean_all_neighbors.transpose();
                 (mean_all_neighbors, cov.symmetric_eigen())
@@ -179,7 +177,7 @@ where
 
         let normal = {
             let normal = surface_info.eigen.eigenvectors.column(0).into_owned();
-            if normal.dot(&self.sensor_pose().xyz()) < P::Data::zero() {
+            if normal.dot(&self.sensor_pose().xyz()) < zero() {
                 -normal
             } else {
                 normal
@@ -189,10 +187,10 @@ where
         if let Some(pedal) = pedal {
             *pedal = (&normal * (normal.dot(&surface_info.mean) - normal.dot(&pivot.xyz()))
                 + pivot.xyz())
-            .insert_row(3, P::Data::zero());
+            .insert_row(3, zero());
         }
 
-        Some(normal.insert_row(3, P::Data::zero()))
+        Some(normal.insert_row(3, zero()))
     }
 
     pub fn impact_angle(&self, index: (usize, usize), radius: usize) -> Option<P::Data> {
@@ -204,7 +202,7 @@ where
 
     pub fn acuteness(&self, index: (usize, usize), radius: usize) -> Option<P::Data> {
         self.impact_angle(index, radius)
-            .map(|ia| P::Data::one() - ia / P::Data::frac_pi_2())
+            .map(|ia| one::<P::Data>() - ia / P::Data::frac_pi_2())
     }
 }
 
@@ -219,15 +217,15 @@ where
         let angle = if r2 == -P::Data::infinity() {
             return None;
         } else if !r2.is_finite() && r1.is_finite() {
-            P::Data::zero()
+            zero()
         } else if r1.is_finite() {
             // r2.is_finite()
             let (r1s, r2s) = (r1 * r1, r2 * r2);
             let ds = (p2.coords() - p1.coords()).norm_squared();
             let d = Float::sqrt(ds);
 
-            let cosa = (r2s + ds - r1s) / ((P::Data::one() + P::Data::one()) * d * r2);
-            Float::acos(cosa.clamp(P::Data::zero(), P::Data::one()))
+            let cosa = (r2s + ds - r1s) / ((one::<P::Data>() + one()) * d * r2);
+            Float::acos(cosa.clamp(zero(), one()))
         } else {
             // r2.is_finite() && !r1.is_finite()
             P::Data::frac_pi_2()
@@ -242,6 +240,6 @@ where
 
     pub fn acuteness2(&self, p1: &P, p2: &P) -> Option<P::Data> {
         self.impact_angle2(p1, p2)
-            .map(|ia| P::Data::one() - ia / P::Data::frac_pi_2())
+            .map(|ia| one::<P::Data>() - ia / P::Data::frac_pi_2())
     }
 }

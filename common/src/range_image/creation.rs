@@ -1,5 +1,5 @@
 use nalgebra::{Affine3, RealField, Vector2, Vector4};
-use num::{Float, FromPrimitive, One, ToPrimitive};
+use num::{one, Float, FromPrimitive, ToPrimitive};
 
 use super::{image_to_point, point_to_image, unobserved, RangeImage};
 use crate::{
@@ -50,10 +50,10 @@ where
             return Self::new(&[P::Data::pi(), P::Data::frac_pi_2()], sensor_pose, options);
         }
 
-        let max_size = Float::asin(radius / norm) * (P::Data::one() + P::Data::one());
+        let max_size = Float::asin(radius / norm) * (one::<P::Data>() + one());
 
         let radius = options.angular_resolution.map(|r| {
-            Float::ceil(max_size / r / (P::Data::one() + P::Data::one()))
+            Float::ceil(max_size / r / (one::<P::Data>() + one()))
                 .to_usize()
                 .unwrap()
         });

@@ -5,8 +5,10 @@ use std::{
     ops::{Deref, Index, IndexMut},
 };
 
-use nalgebra::{ComplexField, Matrix3, RealField, SVector, Vector4};
-use num::{FromPrimitive, One, Zero};
+use nalgebra::{
+    ComplexField, Matrix3, Matrix3x4, Matrix4, Matrix4x3, RealField, SVector, Vector3, Vector4,
+};
+use num::{one, zero, FromPrimitive, Zero};
 
 use self::transforms::Transform;
 use crate::point::{Centroid, Data, Point, PointViewpoint};
@@ -206,7 +208,7 @@ where
 
         let ret = (num > 0).then(|| {
             let mut ret = acc / <P::Data>::from_usize(num).unwrap();
-            ret.w = <P::Data>::one();
+            ret.w = one();
             ret
         });
         (ret, num)
@@ -350,7 +352,7 @@ where
                 a[6].clone() + c.x.clone(),
                 a[7].clone() + c.y.clone(),
                 a[8].clone() + c.z.clone(),
-                P::Data::one(),
+                one(),
             ]);
 
             let mut cov_matrix = Matrix3::from([
@@ -360,15 +362,11 @@ where
                     a[2].clone() - a[6].clone() * a[8].clone(),
                 ],
                 [
-                    <P::Data>::zero(),
+                    zero(),
                     a[3].clone() - a[7].clone() * a[7].clone(),
                     a[4].clone() - a[7].clone() * a[8].clone(),
                 ],
-                [
-                    <P::Data>::zero(),
-                    <P::Data>::zero(),
-                    a[5].clone() - a[8].clone() * a[8].clone(),
-                ],
+                [zero(), zero(), a[5].clone() - a[8].clone() * a[8].clone()],
             ]);
             cov_matrix.m21 = cov_matrix.m12.clone();
             cov_matrix.m31 = cov_matrix.m13.clone();
@@ -378,6 +376,57 @@ where
         } else {
             (None, num)
         }
+    }
+}
+
+impl<P: Point> PointCloud<P>
+where
+    P::Data: RealField,
+{
+    #[inline]
+    pub fn proj_matrix(&self) -> (Matrix3x4<P::Data>, P::Data) {
+        let mut matrix = Matrix3x4::zeros();
+        let residual = self.proj_matrix_into(&mut matrix);
+        (matrix, residual)
+    }
+
+    pub fn proj_matrix_into(&self, matrix: &mut Matrix3x4<P::Data>) -> P::Data {
+        matrix.set_zero();
+
+        let mut xxt = Matrix4::zeros();
+        let mut xut = Matrix4x3::zeros();
+        let iter = self
+            .storage
+            .iter()
+            .enumerate()
+            .map(|(index, point)| (index % self.width, index / self.width, point))
+            .map(|(x, y, point)| {
+                (
+                    Vector3::new(
+                        P::Data::from_usize(x).unwrap(),
+                        P::Data::from_usize(y).unwrap(),
+                        one(),
+                    ),
+                    point.coords(),
+                )
+            });
+        for (u, x) in iter.clone() {
+            xxt.syger(one(), x, x, one());
+            xut.ger(one(), x, &u, one());
+        }
+        let cholesky = xxt.cholesky().unwrap();
+        for mut column in xut.column_iter_mut() {
+            cholesky.solve_mut(&mut column);
+        }
+        xut.transpose_to(matrix);
+
+        let mut j = Matrix3::zeros();
+        for (u, x) in iter.clone() {
+            let axmu = &*matrix * x - &u;
+            j.syger(one(), &axmu, &axmu, one());
+        }
+        let [[residual, ..]] = j.symmetric_eigenvalues().data.0;
+        residual
     }
 }
 
@@ -534,7 +583,7 @@ where
 
         (num > 0).then(|| {
             let mut ret = acc / <P::Data>::from_usize(num).unwrap();
-            ret.w = <P::Data>::one();
+            ret.w = one();
             ret
         })
     }

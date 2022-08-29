@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use nalgebra::{RealField, Scalar, Vector4};
-use num::{One, ToPrimitive};
+use num::{one, ToPrimitive};
 use pcc_common::{point::Point, point_cloud::PointCloud, search::SearchType};
 
 use crate::{
@@ -21,7 +21,7 @@ where
     P::Data: RealField,
 {
     fn half_diagonal(&self, depth: usize) -> P::Data {
-        self.inner.diagonal(depth) / (P::Data::one() + P::Data::one())
+        self.inner.diagonal(depth) / (one::<P::Data>() + one())
     }
 }
 
