@@ -245,14 +245,17 @@ fn read_bytes<R: BufRead, const COMPRESS: bool>(
         output.clear();
         output.reserve(size);
 
-        let record_size = fields.iter().fold(0, |acc, field| acc + field.ty.size() * field.count);
+        let record_size = fields
+            .iter()
+            .fold(0, |acc, field| acc + field.ty.size() * field.count);
         let record_num = size / record_size;
 
         for record_index in 0..record_num {
             let mut offset = 0;
             for field in fields {
                 let field_size = field.ty.size() * field.count;
-                output.extend_from_slice(&temp[(offset + field_size * record_index)..][..field_size]);
+                output
+                    .extend_from_slice(&temp[(offset + field_size * record_index)..][..field_size]);
                 offset += field_size * record_num;
             }
         }

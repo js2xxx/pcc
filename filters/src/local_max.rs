@@ -7,8 +7,8 @@ use pcc_common::{
     point::Point,
     point_cloud::PointCloud,
 };
-use pcc_kdtree::{KdTree, RadiusResultSet};
 use pcc_sac::Plane;
+use pcc_search::{KdTree, RadiusResultSet};
 
 use crate::InlierProjection;
 

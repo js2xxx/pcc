@@ -6,7 +6,7 @@ use pcc_common::{
     point::Point,
     point_cloud::PointCloud,
 };
-use pcc_kdtree::{KdTree, KnnResultSet, RadiusResultSet};
+use pcc_search::{KdTree, KnnResultSet, RadiusResultSet};
 
 /// Calculate the mean distance between each point and its `mean_k` nearest
 /// neighbors. If its mean distance is larger (or smaller if `negative`) than

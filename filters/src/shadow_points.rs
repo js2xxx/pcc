@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use nalgebra::{RealField, Scalar};
 use pcc_common::{
     filter::{ApproxFilter, Filter},
-    point::{PointNormal, Point},
+    point::{Point, PointNormal},
     point_cloud::PointCloud,
 };
 

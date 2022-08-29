@@ -220,14 +220,16 @@ where
             return None;
         } else if !r2.is_finite() && r1.is_finite() {
             P::Data::zero()
-        } else if r1.is_finite() { // r2.is_finite()
+        } else if r1.is_finite() {
+            // r2.is_finite()
             let (r1s, r2s) = (r1 * r1, r2 * r2);
             let ds = (p2.coords() - p1.coords()).norm_squared();
             let d = Float::sqrt(ds);
 
             let cosa = (r2s + ds - r1s) / ((P::Data::one() + P::Data::one()) * d * r2);
             Float::acos(cosa.clamp(P::Data::zero(), P::Data::one()))
-        } else { // r2.is_finite() && !r1.is_finite()
+        } else {
+            // r2.is_finite() && !r1.is_finite()
             P::Data::frac_pi_2()
         };
 

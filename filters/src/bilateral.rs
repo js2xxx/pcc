@@ -1,6 +1,6 @@
 use nalgebra::{RealField, Scalar};
 use pcc_common::{filter::ApproxFilter, point::PointIntensity, point_cloud::PointCloud};
-use pcc_kdtree::{KdTree, RadiusResultSet};
+use pcc_search::{KdTree, RadiusResultSet};
 
 /// NOTE: This function don't modify point coordinates. Instead, it recomputes
 /// their intensities.

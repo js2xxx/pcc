@@ -1,15 +1,13 @@
 [package]
 edition = "2021"
-name = "pcc-filters"
+name = "pcc-search"
 version = "0.1.0"
 
 [dependencies]
 # Local crates
 pcc-common = {path = "../common"}
-pcc-search = {path = "../search"}
-pcc-sac = {path = "../sac"}
+pcc-kdtree = {path = "../kdtree"}
+pcc-octree = {path = "../octree"}
 # External crates
 nalgebra = "0"
 num = "0"
-rand = "0"
-rayon = "1"

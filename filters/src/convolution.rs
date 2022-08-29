@@ -6,7 +6,7 @@ use nalgebra::{ComplexField, DVector, Scalar, Vector4};
 use pcc_common::{
     point::Point,
     point_cloud::PointCloud,
-    search::{SearchType, Search},
+    search::{Search, SearchType},
 };
 use rayon::{iter::ParallelIterator, prelude::IntoParallelRefIterator};
 
