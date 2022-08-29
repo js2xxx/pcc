@@ -5,6 +5,7 @@
 #![feature(type_alias_impl_trait)]
 #![feature(unzip_option)]
 
+pub mod feature;
 pub mod filter;
 pub mod point;
 pub mod point_cloud;

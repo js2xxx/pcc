@@ -176,8 +176,12 @@ pub trait Normal: Debug + Clone + PartialEq + PartialOrd + Default {
     }
 }
 
-pub trait PointNormal: Point + Normal<Data = <Self as Data>::Data> {}
-impl<T: Point + Normal<Data = <Self as Data>::Data>> PointNormal for T {}
+pub trait PointNormal: Point + Normal<Data = <Self as Data>::Data> {
+    type Data;
+}
+impl<T: Point + Normal<Data = <Self as Data>::Data>> PointNormal for T {
+    type Data = <Self as Data>::Data;
+}
 
 pub trait PointIntensity: Point {
     fn intensity(&self) -> Self::Data;
