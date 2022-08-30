@@ -1,4 +1,5 @@
 use nalgebra::Vector4;
+use static_assertions::assert_obj_safe;
 
 use crate::{point::Point, point_cloud::PointCloud};
 
@@ -27,3 +28,5 @@ pub trait Search<'a, P: Point> {
         self.search(pivot, ty, result)
     }
 }
+
+assert_obj_safe!(Search<'_, crate::point::Point3>);

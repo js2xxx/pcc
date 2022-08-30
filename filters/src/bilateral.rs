@@ -1,6 +1,9 @@
 use nalgebra::{RealField, Scalar};
-use pcc_common::{filter::ApproxFilter, point::PointIntensity, point_cloud::PointCloud};
-use pcc_search::{KdTree, RadiusResultSet};
+use num::ToPrimitive;
+use pcc_common::{
+    filter::ApproxFilter, point::PointIntensity, point_cloud::PointCloud, search::SearchType,
+};
+use pcc_search::searcher;
 
 /// NOTE: This function don't modify point coordinates. Instead, it recomputes
 /// their intensities.
@@ -44,18 +47,25 @@ impl<T: RealField> Bilateral<T> {
     }
 }
 
-impl<T: RealField, P: PointIntensity<Data = T>> ApproxFilter<PointCloud<P>> for Bilateral<T> {
+impl<T: RealField + ToPrimitive, P: PointIntensity<Data = T>> ApproxFilter<PointCloud<P>>
+    for Bilateral<T>
+{
     fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {
-        let searcher = KdTree::new(input);
+        searcher!(searcher in input, T::default_epsilon());
 
-        let mut result = RadiusResultSet::new(self.sigma_d.clone() * (T::one() + T::one()));
+        let radius = self.sigma_d.clone() * (T::one() + T::one());
+        let mut result = Vec::new();
         let mut output = input.clone();
         unsafe {
             for point in output.storage().iter_mut() {
-                searcher.search_typed(point.coords(), &mut result);
+                searcher.search(
+                    point.coords(),
+                    SearchType::Radius(radius.clone()),
+                    &mut result,
+                );
                 point.set_intensity(self.compute_intensity(
                     point,
-                    { result.iter() }.map(|(distance, index)| (&input[*index], distance.clone())),
+                    { result.iter() }.map(|(index, distance)| (&input[*index], distance.clone())),
                 ));
             }
         }
