@@ -10,3 +10,4 @@ pcc-search = {path = "../search"}
 # External crates
 nalgebra = "0"
 num = "0"
+rand = "0"
