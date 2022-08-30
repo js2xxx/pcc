@@ -127,9 +127,7 @@ pub trait PointRgba: Point {
     }
 }
 
-pub trait Normal: Debug + Clone + PartialEq + PartialOrd + Default {
-    type Data: Scalar;
-
+pub trait Normal: Data {
     fn normal(&self) -> &Vector4<Self::Data>;
 
     fn normal_mut(&mut self) -> &mut Vector4<Self::Data>;
@@ -176,12 +174,8 @@ pub trait Normal: Debug + Clone + PartialEq + PartialOrd + Default {
     }
 }
 
-pub trait PointNormal: Point + Normal<Data = <Self as Data>::Data> {
-    type Data;
-}
-impl<T: Point + Normal<Data = <Self as Data>::Data>> PointNormal for T {
-    type Data = <Self as Data>::Data;
-}
+pub trait PointNormal: Point + Normal {}
+impl<T: Point + Normal> PointNormal for T {}
 
 pub trait PointIntensity: Point {
     fn intensity(&self) -> Self::Data;

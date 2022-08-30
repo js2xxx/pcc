@@ -88,8 +88,6 @@ macro_rules! __define_point {
         $curvature_index:literal
     ) => {
         impl $trait for $type {
-            type Data = $data;
-
             #[inline]
             fn $get(&self) -> &Vector4<$data> {
                 unsafe { &*(self.0.fixed_rows::<4>($normal_index).data.ptr() as *const _) }

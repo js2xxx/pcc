@@ -8,6 +8,7 @@ pub use pcc_octree::*;
 
 pub use self::neighbors::*;
 
+#[inline]
 pub fn __searcher<'a, 'b, T, P>(
     input: &'a PointCloud<P>,
     epsilon: P::Data,

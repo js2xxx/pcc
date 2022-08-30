@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use nalgebra::{RealField, Scalar};
 use pcc_common::{
     filter::{ApproxFilter, Filter},
-    point::{Point, PointNormal},
+    point::PointNormal,
     point_cloud::PointCloud,
 };
 
@@ -22,7 +22,7 @@ impl<T: Scalar> ShadowPoints<T> {
 }
 
 impl<T: RealField> ShadowPoints<T> {
-    fn filter_one<P: PointNormal + Point<Data = T>>(&self, point: &P) -> bool {
+    fn filter_one<P: PointNormal<Data = T>>(&self, point: &P) -> bool {
         let normal = point.normal();
         let value = (point.coords().x.clone() * normal.x.clone()
             + point.coords().y.clone() * normal.y.clone()
@@ -32,12 +32,12 @@ impl<T: RealField> ShadowPoints<T> {
         (value >= self.threshold) ^ self.negative
     }
 
-    fn inner<P: PointNormal + Point<Data = T>>(&self) -> impl FnMut(&P) -> bool + '_ {
+    fn inner<P: PointNormal<Data = T>>(&self) -> impl FnMut(&P) -> bool + '_ {
         |point| self.filter_one(point)
     }
 }
 
-impl<T: RealField, P: PointNormal + Point<Data = T>> Filter<PointCloud<P>> for ShadowPoints<T> {
+impl<T: RealField, P: PointNormal<Data = T>> Filter<PointCloud<P>> for ShadowPoints<T> {
     fn filter_indices(&mut self, input: &PointCloud<P>) -> Vec<usize> {
         self.inner().filter_indices(input)
     }
@@ -47,7 +47,7 @@ impl<T: RealField, P: PointNormal + Point<Data = T>> Filter<PointCloud<P>> for S
     }
 }
 
-impl<T: RealField, P: PointNormal + Point<Data = T> + Clone + Debug> ApproxFilter<PointCloud<P>>
+impl<T: RealField, P: PointNormal<Data = T> + Clone + Debug> ApproxFilter<PointCloud<P>>
     for ShadowPoints<T>
 {
     fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {

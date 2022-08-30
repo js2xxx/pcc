@@ -24,26 +24,16 @@ where
         radius: usize,
         step: usize,
     ) -> Option<SymmetricEigen<P::Data, Const<3>>> {
-        let mut num = zero::<P::Data>();
-        let mut mean = Vector3::zeros();
-        let mut cov = Matrix3::zeros();
-        for x in ((x - radius)..=(x + radius)).step_by(step) {
-            for y in ((y - radius)..=(y + radius)).step_by(step) {
-                let point = &self.point_cloud[(x, y)];
-                if !point.is_finite() || !point.range().is_finite() {
-                    continue;
-                }
-                let coords = point.coords().xyz();
-                cov = (cov * num.clone() + &coords * coords.transpose()) / (num.clone() + one());
-                mean = (mean * num.clone() + &coords) / (num.clone() + one());
-                num += one();
-            }
-        }
-        if num.to_usize().unwrap() < 3 {
-            return None;
-        }
-        cov -= &mean * mean.transpose();
-        Some(cov.symmetric_eigen())
+        let x = ((x - radius)..=(x + radius)).step_by(step);
+        let y = ((y - radius)..=(y + radius)).step_by(step);
+
+        let coords = x
+            .flat_map(|x| y.clone().map(move |y| &self.point_cloud[(x, y)]))
+            .filter_map(|point| {
+                (point.is_finite() && point.range().is_finite()).then(|| point.coords())
+            });
+
+        Some(crate::cov_matrix(coords)?.symmetric_eigen())
     }
 
     pub fn normal(
@@ -52,11 +42,9 @@ where
         radius: usize,
         step: usize,
     ) -> Option<Vector4<P::Data>> {
-        let normal = self
-            .normal_inner(index, radius, step)?
-            .eigenvectors
-            .column(0)
-            .into_owned();
+        let symmetric_eigen = self.normal_inner(index, radius, step)?;
+        let index = symmetric_eigen.eigenvalues.imin();
+        let normal = symmetric_eigen.eigenvectors.column(index).into_owned();
         Some(
             if normal.dot(&self.sensor_pose().xyz()) < zero() {
                 -normal
@@ -69,7 +57,7 @@ where
 
     pub fn curvature(&self, index: (usize, usize), radius: usize, step: usize) -> Option<P::Data> {
         let eigens = self.normal_inner(index, radius, step)?.eigenvalues;
-        let curvature = eigens[0].clone();
+        let curvature = eigens.min();
         Some(curvature / eigens.sum())
     }
 
@@ -80,8 +68,9 @@ where
         step: usize,
     ) -> Option<(Vector4<P::Data>, P::Data)> {
         let eigen = self.normal_inner(index, radius, step)?;
-        let normal = eigen.eigenvectors.column(0).into_owned();
-        let curvature = eigen.eigenvalues[0].clone();
+        let index = eigen.eigenvalues.imin();
+        let normal = eigen.eigenvectors.column(index).into_owned();
+        let curvature = eigen.eigenvalues[index].clone();
         Some((
             if normal.dot(&self.sensor_pose().xyz()) < zero() {
                 -normal
