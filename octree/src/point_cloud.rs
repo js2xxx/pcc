@@ -3,7 +3,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use nalgebra::{ComplexField, RealField, Scalar, Vector4};
+use nalgebra::{convert, ComplexField, RealField, Scalar, Vector4};
 use num::ToPrimitive;
 use pcc_common::{point::Point, point_cloud::PointCloud};
 
@@ -64,7 +64,7 @@ impl<L, T: RealField + ToPrimitive> OcTreePc<L, T> {
                 center_value,
                 T::one(),
             ]);
-            let center = (&max + &min) / (T::one() + T::one());
+            let center = (&max + &min) / convert::<_, T>(2.);
             center - center_key
         };
 
@@ -144,7 +144,7 @@ impl<L, T: ComplexField> OcTreePc<L, T> {
     }
 
     pub fn center(&self, key: &[usize; 3], depth: usize) -> Vector4<T> {
-        let radius = self.side(depth) / (T::one() + T::one());
+        let radius = self.side(depth) / convert(2.);
         let coords = self.key_to_coords(key);
         let mut ret = coords.map(|v| v + radius.clone());
         ret.w = T::one();

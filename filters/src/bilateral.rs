@@ -1,4 +1,4 @@
-use nalgebra::{RealField, Scalar};
+use nalgebra::{convert, RealField, Scalar};
 use num::ToPrimitive;
 use pcc_common::{
     filter::ApproxFilter, point::PointIntensity, point_cloud::PointCloud, search::SearchType,
@@ -21,7 +21,7 @@ impl<T: Scalar> Bilateral<T> {
 
 impl<T: RealField> Bilateral<T> {
     fn kernel(x: T, sigma: T) -> T {
-        (-x.clone() * x / ((T::one() + T::one()) * sigma.clone() * sigma)).exp()
+        (-x.clone() * x / (convert::<_, T>(2.) * sigma.clone() * sigma)).exp()
     }
 
     fn compute_intensity<'a, P: 'a + PointIntensity<Data = T>, Iter>(
@@ -53,7 +53,7 @@ impl<T: RealField + ToPrimitive, P: PointIntensity<Data = T>> ApproxFilter<Point
     fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {
         searcher!(searcher in input, T::default_epsilon());
 
-        let radius = self.sigma_d.clone() * (T::one() + T::one());
+        let radius = self.sigma_d.clone() * convert(2.);
         let mut result = Vec::new();
         let mut output = input.clone();
         unsafe {

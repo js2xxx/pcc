@@ -1,7 +1,7 @@
 use std::ptr::NonNull;
 
 use bitvec::vec::BitVec;
-use nalgebra::{RealField, Scalar, Vector3, Vector4};
+use nalgebra::{convert, RealField, Scalar, Vector3, Vector4};
 use pcc_common::point::Point;
 
 use crate::ResultSet;
@@ -201,7 +201,7 @@ impl<'a, T: RealField> Node<'a, T> {
                             [other, one]
                         },
                         dim,
-                        value: (coord[dim].clone() + pivot[dim].clone()) / (T::one() + T::one()),
+                        value: (coord[dim].clone() + pivot[dim].clone()) / convert(2.),
                     };
 
                     break;

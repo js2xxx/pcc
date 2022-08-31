@@ -1,4 +1,4 @@
-use nalgebra::{matrix, RealField, Scalar, Vector3, Vector4};
+use nalgebra::{convert, matrix, RealField, Scalar, Vector3, Vector4};
 use num::ToPrimitive;
 use sample_consensus::{Estimator, Model};
 
@@ -50,9 +50,9 @@ impl<T: RealField + ToPrimitive> Estimator<Vector4<T>> for SphereEstimator {
     {
         match (data.next(), data.next(), data.next(), data.next()) {
             (Some(a), Some(b), Some(c), Some(d)) => {
-                let xa_2 = (&b - &a).xyz() * (T::one() + T::one());
-                let xb_2 = (&c - &a).xyz() * (T::one() + T::one());
-                let xc_2 = (&d - &a).xyz() * (T::one() + T::one());
+                let xa_2 = (&b - &a).xyz() * convert::<_, T>(2.);
+                let xb_2 = (&c - &a).xyz() * convert::<_, T>(2.);
+                let xc_2 = (&d - &a).xyz() * convert::<_, T>(2.);
 
                 let a_norm2 = a.xyz().norm_squared();
                 let b_norm2 = b.xyz().norm_squared();

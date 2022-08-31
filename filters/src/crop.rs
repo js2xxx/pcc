@@ -1,4 +1,4 @@
-use nalgebra::{RealField, Rotation3, Scalar, Vector4};
+use nalgebra::{convert, RealField, Rotation3, Scalar, Vector4};
 use pcc_common::{
     filter::{ApproxFilter, Filter},
     point::Point,
@@ -32,7 +32,7 @@ impl<T: RealField> CropBox<T> {
 
 impl<T: RealField, P: Point<Data = T>> Filter<[P]> for CropBox<T> {
     fn filter_indices(&mut self, input: &[P]) -> Vec<usize> {
-        let center = (&self.min + &self.max).unscale(T::one() + T::one()).xyz();
+        let center = (&self.min + &self.max).unscale(convert(2.)).xyz();
 
         let mut indices = (0..input.len()).collect::<Vec<_>>();
         indices.retain(|&index| {
@@ -47,7 +47,7 @@ impl<T: RealField, P: Point<Data = T>> Filter<[P]> for CropBox<T> {
     }
 
     fn filter_all_indices(&mut self, input: &[P]) -> (Vec<usize>, Vec<usize>) {
-        let center = (&self.min + &self.max).unscale(T::one() + T::one()).xyz();
+        let center = (&self.min + &self.max).unscale(convert(2.)).xyz();
 
         let mut indices = (0..input.len()).collect::<Vec<_>>();
         let mut removed = Vec::with_capacity(indices.len());
@@ -70,7 +70,7 @@ impl<T: RealField, P: Point<Data = T>> Filter<[P]> for CropBox<T> {
 
 impl<T: RealField, P: Point<Data = T>> ApproxFilter<PointCloud<P>> for CropBox<T> {
     fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {
-        let center = (&self.min + &self.max).unscale(T::one() + T::one()).xyz();
+        let center = (&self.min + &self.max).unscale(convert(2.)).xyz();
 
         let mut storage = Vec::from(&**input);
         storage.retain(|point| {

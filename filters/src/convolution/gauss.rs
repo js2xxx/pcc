@@ -1,4 +1,4 @@
-use nalgebra::{RealField, Scalar, Vector4};
+use nalgebra::{convert, RealField, Scalar, Vector4};
 use pcc_common::point::{Point, PointRgba};
 
 use super::DynamicKernel;
@@ -26,7 +26,7 @@ impl<'a, T: RealField, P: Point<Data = T> + 'a> DynamicKernel<'a, P> for Gauss<T
             (Vector4::zeros(), T::zero()),
             |(sum, weight), (point, distance)| {
                 if distance <= threshold {
-                    let w = (-distance / var.clone() / (T::one() + T::one())).exp();
+                    let w = (-distance / var.clone() / convert(2.)).exp();
                     (sum + point.coords() * w.clone(), weight + w)
                 } else {
                     (sum, weight)
@@ -66,7 +66,7 @@ impl<'a, T: RealField, P: PointRgba<Data = T> + 'a> DynamicKernel<'a, P> for Gau
             (Vector4::zeros(), [0.; 4], T::zero()),
             |(sum, [b, g, r, a], weight), (point, distance)| {
                 if distance <= threshold {
-                    let w = (-distance / var.clone() / (T::one() + T::one())).exp();
+                    let w = (-distance / var.clone() / convert(2.)).exp();
                     let rgba = point.rgba_array();
                     (
                         sum + point.coords() * w.clone(),

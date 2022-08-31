@@ -10,11 +10,11 @@ use pcc_common::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BoundaryEstimation<T: Scalar, N> {
     pub angle_threshold: T,
-    pub normals: Vec<N>,
+    pub normals: N,
 }
 
 impl<T: Scalar, N> BoundaryEstimation<T, N> {
-    pub fn new(angle_threshold: T, normals: Vec<N>) -> Self {
+    pub fn new(angle_threshold: T, normals: N) -> Self {
         BoundaryEstimation {
             angle_threshold,
             normals,
@@ -50,13 +50,14 @@ impl<T: RealField, N> BoundaryEstimation<T, N> {
     }
 }
 
-impl<'a, T, I, S, N> Feature<PointCloud<I>, PointCloud<bool>, S, SearchType<T>>
-    for BoundaryEstimation<T, N>
+impl<'a, 'b, T, I, S, V, N> Feature<PointCloud<I>, PointCloud<bool>, S, SearchType<T>>
+    for BoundaryEstimation<T, V>
 where
     T: RealField,
     I: Point<Data = T>,
     S: Search<'a, I>,
-    N: Normal<Data = T>,
+    V: Iterator<Item = &'b N> + Clone,
+    N: Normal<Data = T> + 'b,
     rand::distributions::Standard: rand::distributions::Distribution<T>,
 {
     fn compute(
@@ -70,7 +71,7 @@ where
         let storage = if input.is_bounded() {
             input
                 .iter()
-                .zip(self.normals.iter())
+                .zip(self.normals.clone())
                 .map(|(point, normal)| {
                     search.search(point.coords(), search_param.clone(), &mut result);
                     if result.is_empty() {
@@ -90,7 +91,7 @@ where
         } else {
             input
                 .iter()
-                .zip(self.normals.iter())
+                .zip(self.normals.clone())
                 .map(|(point, normal)| {
                     if !point.is_finite() {
                         bounded = false;

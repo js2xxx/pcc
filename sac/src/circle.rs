@@ -1,4 +1,4 @@
-use nalgebra::{matrix, RealField, Scalar, Vector3, Vector4};
+use nalgebra::{convert, matrix, RealField, Scalar, Vector3, Vector4};
 use num::ToPrimitive;
 use sample_consensus::{Estimator, Model};
 
@@ -86,8 +86,8 @@ impl CircleEstimator {
         let b_norm2 = b.xyz().norm_squared();
         let c_norm2 = c.xyz().norm_squared();
 
-        let xa_2 = xa.scale(T::one() + T::one());
-        let xb_2 = xb.scale(T::one() + T::one());
+        let xa_2 = xa.scale(convert(2.));
+        let xb_2 = xb.scale(convert(2.));
         let matrix_a = matrix![
             normal.x.clone(), normal.y.clone(), normal.z.clone();
             xa_2.x.clone(), xa_2.y.clone(), xa_2.z.clone();
