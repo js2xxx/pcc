@@ -10,7 +10,7 @@ pub enum SearchType<T> {
 }
 
 pub trait Search<'a, P: Point> {
-    fn point_cloud(&self) -> &'a PointCloud<P>;
+    fn input(&self) -> &'a PointCloud<P>;
 
     fn search(
         &self,

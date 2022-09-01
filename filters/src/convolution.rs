@@ -245,7 +245,7 @@ impl<'a, T: ComplexField, K, S> Dynamic<T, K, S> {
         K: Sync + DynamicKernel<'a, P>,
         S: Sync + Search<'a, P>,
     {
-        let input = self.searcher.point_cloud();
+        let input = self.searcher.input();
 
         let output = { input.par_iter() }
             .map(|point| {
@@ -272,7 +272,7 @@ impl<'a, T: ComplexField, K, S> Dynamic<T, K, S> {
         K: DynamicKernel<'a, P>,
         S: Search<'a, P>,
     {
-        let input = self.searcher.point_cloud();
+        let input = self.searcher.input();
 
         let output = { input.iter() }
             .map(|point| {

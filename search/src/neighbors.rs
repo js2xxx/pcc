@@ -198,7 +198,7 @@ where
     P: Point,
     P::Data: RealField + ToPrimitive,
 {
-    fn point_cloud(&self) -> &'a PointCloud<P> {
+    fn input(&self) -> &'a PointCloud<P> {
         self.point_cloud
     }
 

@@ -234,7 +234,7 @@ impl<'a, P: Point> pcc_common::search::Search<'a, P> for OcTreePcSearch<'a, P>
 where
     P::Data: RealField + ToPrimitive,
 {
-    fn point_cloud(&self) -> &'a PointCloud<P> {
+    fn input(&self) -> &'a PointCloud<P> {
         self.point_cloud
     }
 

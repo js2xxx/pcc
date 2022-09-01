@@ -96,7 +96,7 @@ impl<'a, P: Point> pcc_common::search::Search<'a, P> for KdTree<'a, P>
 where
     P::Data: RealField,
 {
-    fn point_cloud(&self) -> &'a PointCloud<P> {
+    fn input(&self) -> &'a PointCloud<P> {
         self.point_cloud
     }
 

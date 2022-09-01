@@ -13,11 +13,28 @@ use pcc_common::{
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
-struct PfhPair<T> {
-    alpha: T,
-    phi: T,
-    theta: T,
-    distance: T,
+pub(crate) struct PfhPair<T> {
+    pub alpha: T,
+    pub phi: T,
+    pub theta: T,
+    pub distance: T,
+}
+
+impl<T: RealField> PfhPair<T> {
+    pub fn try_new([p1, n1]: &[Vector3<T>; 2], [p2, n2]: &[Vector3<T>; 2]) -> Option<PfhPair<T>> {
+        let (delta, distance) = Unit::try_new_and_get(p2 - p1, T::zero())?;
+
+        let u = n1;
+        let v = u.cross(&delta);
+        let w = u.cross(&v);
+
+        Some(PfhPair {
+            alpha: v.dot(n2),
+            phi: u.dot(&delta),
+            theta: w.dot(n2).atan2(u.dot(n2)),
+            distance,
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -36,25 +53,6 @@ impl<N> PfhEstimation<N> {
         }
     }
 
-    fn pfh_pair<T: RealField>(
-        &self,
-        [p1, n1]: &[Vector3<T>; 2],
-        [p2, n2]: &[Vector3<T>; 2],
-    ) -> Option<PfhPair<T>> {
-        let (delta, distance) = Unit::try_new_and_get(p2 - p1, T::zero())?;
-
-        let u = n1;
-        let v = u.cross(&delta);
-        let w = u.cross(&v);
-
-        Some(PfhPair {
-            alpha: v.dot(n2),
-            phi: u.dot(&delta),
-            theta: w.dot(n2).atan2(u.dot(n2)),
-            distance,
-        })
-    }
-
     fn pfh<T, P, N2>(
         &self,
         indices: &[(usize, T)],
@@ -71,7 +69,7 @@ impl<N> PfhEstimation<N> {
         let num: T = convert(self.subdivision as f64);
         let inc = convert::<_, T>(100.) / convert(((indices.len() - 1) * indices.len() / 2) as f64);
 
-        let mut count = Vec::new();
+        let mut count = vec![T::zero(); self.subdivision * self.subdivision * self.subdivision];
         for (i, j) in indices
             .iter()
             .enumerate()
@@ -84,7 +82,7 @@ impl<N> PfhEstimation<N> {
                     .flatten();
                 let pair = pair.or_else(|| {
                     new = true;
-                    self.pfh_pair(
+                    PfhPair::try_new(
                         &[points[i].coords().xyz(), normals[i].normal().xyz()],
                         &[points[j].coords().xyz(), normals[j].normal().xyz()],
                     )
@@ -101,16 +99,12 @@ impl<N> PfhEstimation<N> {
                     ((pair.phi.clone() + T::one()) / convert(2.) * num.clone()),
                 ];
                 data.into_iter().fold((0, 1), |(index, weight), data| {
-                    let data = { data.floor() }
-                        .clamp(T::zero(), num.clone())
+                    let data = { data.clamp(T::zero(), num.clone()).floor() }
                         .to_usize()
                         .unwrap();
                     (index + weight * data, weight * self.subdivision)
                 })
             };
-            if count.len() <= index {
-                count.resize(index + 1, T::zero());
-            }
             count[index] += inc.clone();
 
             if self.cache_len > 0 && new {
@@ -145,7 +139,7 @@ where
     ) -> PointCloud<DVector<T>> {
         let mut result = Vec::new();
         let mut bounded = true;
-        
+
         let mut cache = HashMap::new();
         let mut cached_keys = VecDeque::new();
 

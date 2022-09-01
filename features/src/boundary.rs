@@ -54,7 +54,7 @@ impl<'a, 'b, T, I, S, V, N> Feature<PointCloud<I>, PointCloud<bool>, S, SearchTy
     for BoundaryEstimation<T, V>
 where
     T: RealField,
-    I: Point<Data = T>,
+    I: Point<Data = T> + 'a,
     S: Search<'a, I>,
     V: Iterator<Item = &'b N> + Clone,
     N: Normal<Data = T> + 'b,
@@ -83,7 +83,9 @@ where
                     let v = normal.normal().xyz().cross(&u);
                     self.boundary(
                         point.coords(),
-                        result.iter().map(|&(index, _)| input[index].coords()),
+                        result
+                            .iter()
+                            .map(|&(index, _)| search.input()[index].coords()),
                         &[u, v],
                     )
                 })
@@ -107,7 +109,9 @@ where
                     let v = normal.normal().xyz().cross(&u);
                     self.boundary(
                         point.coords(),
-                        result.iter().map(|&(index, _)| input[index].coords()),
+                        result
+                            .iter()
+                            .map(|&(index, _)| search.input()[index].coords()),
                         &[u, v],
                     )
                 })

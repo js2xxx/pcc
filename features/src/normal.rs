@@ -20,7 +20,7 @@ impl<T: Scalar> NormalEstimation<T> {
 impl<'a, T, I, O, S> Feature<PointCloud<I>, PointCloud<O>, S, SearchType<T>> for NormalEstimation<T>
 where
     T: RealField,
-    I: Point<Data = T>,
+    I: Point<Data = T> + 'a,
     S: Search<'a, I>,
     O: Normal<Data = T>,
 {
@@ -36,7 +36,9 @@ where
                 .map(|point| {
                     search.search(point.coords(), search_param.clone(), &mut result);
                     let res = pcc_common::normal(
-                        result.iter().map(|&(index, _)| input[index].coords()),
+                        result
+                            .iter()
+                            .map(|&(index, _)| search.input()[index].coords()),
                         &self.viewpoint,
                     )
                     .map(|(normal, curvature)| {
@@ -54,7 +56,9 @@ where
                     }
                     search.search(point.coords(), search_param.clone(), &mut result);
                     let res = pcc_common::normal(
-                        result.iter().map(|&(index, _)| input[index].coords()),
+                        result
+                            .iter()
+                            .map(|&(index, _)| search.input()[index].coords()),
                         &self.viewpoint,
                     )
                     .map(|(normal, curvature)| {
