@@ -29,4 +29,24 @@ pub trait Search<'a, P: Point> {
     }
 }
 
+impl<'b, 'a, P: Point, T> Search<'a, P> for &'b T
+where
+    T: Search<'a, P>,
+{
+    #[inline]
+    fn input(&self) -> &'a PointCloud<P> {
+        Search::input(*self)
+    }
+
+    #[inline]
+    fn search(
+        &self,
+        pivot: &Vector4<P::Data>,
+        ty: SearchType<P::Data>,
+        result: &mut Vec<(usize, P::Data)>,
+    ) {
+        Search::search(*self, pivot, ty, result)
+    }
+}
+
 assert_obj_safe!(Search<'_, crate::point::Point3>);

@@ -17,7 +17,7 @@ impl<T: Scalar> NormalEstimation<T> {
     }
 }
 
-impl<'a, T, I, O, S> Feature<PointCloud<I>, PointCloud<O>, S, SearchType<T>> for NormalEstimation<T>
+impl<'a, T, I, O, S> Feature<&'a PointCloud<I>, PointCloud<O>, S, SearchType<T>> for NormalEstimation<T>
 where
     T: RealField,
     I: Point<Data = T> + 'a,
@@ -26,8 +26,8 @@ where
 {
     fn compute(
         &self,
-        input: &PointCloud<I>,
-        search: &S,
+        input: &'a PointCloud<I>,
+        search: S,
         search_param: SearchType<T>,
     ) -> PointCloud<O> {
         let mut result = Vec::new();

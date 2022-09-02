@@ -10,3 +10,5 @@ pub use self::{
     boundary::BoundaryEstimation, fpfh::FpfhEstimation, normal::NormalEstimation,
     pfh::PfhEstimation, vfh::VfhEstimation,
 };
+
+pub const HIST_MAX: f64 = 100.;

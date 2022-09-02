@@ -8,21 +8,17 @@ use pcc_common::{
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BoundaryEstimation<T: Scalar, N> {
+pub struct BoundaryEstimation<T: Scalar> {
     pub angle_threshold: T,
-    pub normals: N,
 }
 
-impl<T: Scalar, N> BoundaryEstimation<T, N> {
-    pub fn new(angle_threshold: T, normals: N) -> Self {
-        BoundaryEstimation {
-            angle_threshold,
-            normals,
-        }
+impl<T: Scalar> BoundaryEstimation<T> {
+    pub fn new(angle_threshold: T) -> Self {
+        BoundaryEstimation { angle_threshold }
     }
 }
 
-impl<T: RealField, N> BoundaryEstimation<T, N> {
+impl<T: RealField> BoundaryEstimation<T> {
     fn boundary<'a, Iter>(&self, pivot: &Vector4<T>, coords: Iter, [u, v]: &[Vector3<T>; 2]) -> bool
     where
         Iter: Iterator<Item = &'a Vector4<T>>,
@@ -50,20 +46,20 @@ impl<T: RealField, N> BoundaryEstimation<T, N> {
     }
 }
 
-impl<'a, 'b, T, I, S, V, N> Feature<PointCloud<I>, PointCloud<bool>, S, SearchType<T>>
-    for BoundaryEstimation<T, V>
+impl<'a, 'b, T, I, S, N>
+    Feature<(&'a PointCloud<I>, &'b PointCloud<N>), PointCloud<bool>, S, SearchType<T>>
+    for BoundaryEstimation<T>
 where
     T: RealField,
     I: Point<Data = T> + 'a,
     S: Search<'a, I>,
-    V: Iterator<Item = &'b N> + Clone,
     N: Normal<Data = T> + 'b,
     rand::distributions::Standard: rand::distributions::Distribution<T>,
 {
     fn compute(
         &self,
-        input: &PointCloud<I>,
-        search: &S,
+        (input, normals): (&'a PointCloud<I>, &'b PointCloud<N>),
+        search: S,
         search_param: SearchType<T>,
     ) -> PointCloud<bool> {
         let mut result = Vec::new();
@@ -71,7 +67,7 @@ where
         let storage = if input.is_bounded() {
             input
                 .iter()
-                .zip(self.normals.clone())
+                .zip(normals.iter())
                 .map(|(point, normal)| {
                     search.search(point.coords(), search_param.clone(), &mut result);
                     if result.is_empty() {
@@ -93,7 +89,7 @@ where
         } else {
             input
                 .iter()
-                .zip(self.normals.clone())
+                .zip(normals.iter())
                 .map(|(point, normal)| {
                     if !point.is_finite() {
                         bounded = false;

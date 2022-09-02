@@ -1,4 +1,4 @@
-use std::{array, collections::HashSet, ops::Deref};
+use std::{array, collections::HashSet};
 
 use nalgebra::{
     base::dimension::Dynamic, convert, Const, DMatrix, DVector, MatrixSliceMut1xX, RealField,
@@ -11,37 +11,34 @@ use pcc_common::{
     search::{Search, SearchType},
 };
 
-use crate::pfh::PfhPair;
+use crate::{pfh::PfhPair, HIST_MAX};
 
-pub struct FpfhEstimation<N> {
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct FpfhEstimation {
     pub subdivision: [usize; 3],
-    pub normals: N,
 }
 
-impl<N> FpfhEstimation<N> {
-    pub fn new(subdivision: [usize; 3], normals: N) -> Self {
-        FpfhEstimation {
-            subdivision,
-            normals,
-        }
+impl FpfhEstimation {
+    pub fn new(subdivision: [usize; 3]) -> Self {
+        FpfhEstimation { subdivision }
     }
 }
 
-impl<N> FpfhEstimation<N> {
-    fn point_spfh<T, P, N2>(
+impl FpfhEstimation {
+    fn point_spfh<T, P, N>(
         &self,
         pivot: usize,
         indices: &[(usize, T)],
         points: &[P],
-        normals: &[N2],
+        normals: &[N],
         mut hist: [MatrixSliceMut1xX<'_, T, Const<1>, Dynamic>; 3],
     ) where
         T: RealField + ToPrimitive,
         P: Point<Data = T>,
-        N2: Normal<Data = T>,
+        N: Normal<Data = T>,
     {
         let num: [T; 3] = array::from_fn(|index| convert(hist[index].ncols() as f64));
-        let inc = convert::<_, T>(100.) / convert((indices.len() - 1) as f64);
+        let inc = convert::<_, T>(HIST_MAX) / convert((indices.len() - 1) as f64);
 
         for index in indices.iter().map(|&(index, _)| index) {
             if pivot == index {
@@ -70,10 +67,11 @@ impl<N> FpfhEstimation<N> {
     }
 }
 
-impl<V> FpfhEstimation<V> {
+impl FpfhEstimation {
     fn compute_spfh<'a, T: RealField, P, S, N>(
         &self,
         input: &PointCloud<P>,
+        normals: &PointCloud<N>,
         search: &S,
         ty: SearchType<T>,
     ) -> (Vec<usize>, [DMatrix<T>; 3])
@@ -81,7 +79,6 @@ impl<V> FpfhEstimation<V> {
         T: RealField + ToPrimitive,
         P: Point<Data = T> + 'a,
         S: Search<'a, P>,
-        V: Deref<Target = [N]>,
         N: Normal<Data = T>,
     {
         let mut result = Vec::new();
@@ -108,7 +105,7 @@ impl<V> FpfhEstimation<V> {
                 index,
                 &result,
                 search.input(),
-                &self.normals,
+                normals,
                 [h1.row_mut(ii), h2.row_mut(ii), h3.row_mut(ii)],
             );
             ret[index] = ii;
@@ -142,7 +139,7 @@ impl<V> FpfhEstimation<V> {
             }
         }
 
-        let sum: [T; 3] = array::from_fn(|index| convert::<_, T>(100.) / sum[index].clone());
+        let sum: [T; 3] = array::from_fn(|index| convert::<_, T>(HIST_MAX) / sum[index].clone());
 
         ret.columns_range_mut(0..hist[0].ncols())
             .apply(|elem| *elem *= sum[0].clone());
@@ -156,24 +153,24 @@ impl<V> FpfhEstimation<V> {
     }
 }
 
-impl<'a, 'b, T, I, S, V, N> Feature<PointCloud<I>, PointCloud<DVector<T>>, S, SearchType<T>>
-    for FpfhEstimation<V>
+impl<'a, 'b, T, I, S, N>
+    Feature<(&'a PointCloud<I>, &'b PointCloud<N>), PointCloud<DVector<T>>, S, SearchType<T>>
+    for FpfhEstimation
 where
     T: RealField + ToPrimitive,
     I: Point<Data = T> + 'a,
-    S: Search<'a, I>,
-    V: Deref<Target = [N]>,
+    S: Search<'a, I> + Clone,
     N: Normal<Data = T> + 'b,
 {
     fn compute(
         &self,
-        input: &PointCloud<I>,
-        search: &S,
+        (input, normals): (&'a PointCloud<I>, &'b PointCloud<N>),
+        search: S,
         search_param: SearchType<T>,
     ) -> PointCloud<DVector<T>> {
         let mut result = Vec::new();
 
-        let (indices, hist) = self.compute_spfh(input, search, search_param.clone());
+        let (indices, hist) = self.compute_spfh(input, normals, &search, search_param.clone());
 
         let mut bounded = true;
         let storage = if input.is_bounded() {

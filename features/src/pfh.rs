@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, VecDeque},
-    ops::Deref,
-};
+use std::collections::{HashMap, VecDeque};
 
 use nalgebra::{convert, DVector, RealField, Unit, Vector3};
 use num::ToPrimitive;
@@ -11,6 +8,8 @@ use pcc_common::{
     point_cloud::PointCloud,
     search::{Search, SearchType},
 };
+
+use crate::HIST_MAX;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 pub(crate) struct PfhPair<T> {
@@ -38,36 +37,35 @@ impl<T: RealField> PfhPair<T> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct PfhEstimation<N> {
+pub struct PfhEstimation {
     pub cache_len: usize,
     pub subdivision: usize,
-    pub normals: N,
 }
 
-impl<N> PfhEstimation<N> {
-    pub fn new(cache_size: usize, subdivision: usize, normals: N) -> Self {
+impl PfhEstimation {
+    pub fn new(cache_size: usize, subdivision: usize) -> Self {
         PfhEstimation {
             cache_len: cache_size,
             subdivision,
-            normals,
         }
     }
 
-    fn pfh<T, P, N2>(
+    fn pfh<T, P, N>(
         &self,
         indices: &[(usize, T)],
         points: &[P],
-        normals: &[N2],
+        normals: &[N],
         cache: &mut HashMap<(usize, usize), PfhPair<T>>,
         cached_keys: &mut VecDeque<(usize, usize)>,
     ) -> DVector<T>
     where
         T: RealField + ToPrimitive,
         P: Point<Data = T>,
-        N2: Normal<Data = T>,
+        N: Normal<Data = T>,
     {
         let num: T = convert(self.subdivision as f64);
-        let inc = convert::<_, T>(100.) / convert(((indices.len() - 1) * indices.len() / 2) as f64);
+        let inc =
+            convert::<_, T>(HIST_MAX) / convert(((indices.len() - 1) * indices.len() / 2) as f64);
 
         let mut count = vec![T::zero(); self.subdivision * self.subdivision * self.subdivision];
         for (i, j) in indices
@@ -122,19 +120,19 @@ impl<N> PfhEstimation<N> {
     }
 }
 
-impl<'a, 'b, T, I, S, V, N> Feature<PointCloud<I>, PointCloud<DVector<T>>, S, SearchType<T>>
-    for PfhEstimation<V>
+impl<'a, 'b, T, I, S, N>
+    Feature<(&'a PointCloud<I>, &'b PointCloud<N>), PointCloud<DVector<T>>, S, SearchType<T>>
+    for PfhEstimation
 where
     T: RealField + ToPrimitive,
-    I: Point<Data = T>,
+    I: Point<Data = T> + 'a,
     S: Search<'a, I>,
-    V: Deref<Target = [N]>,
     N: Normal<Data = T> + 'b,
 {
     fn compute(
         &self,
-        input: &PointCloud<I>,
-        search: &S,
+        (input, normals): (&'a PointCloud<I>, &'b PointCloud<N>),
+        search: S,
         search_param: SearchType<T>,
     ) -> PointCloud<DVector<T>> {
         let mut result = Vec::new();
@@ -152,7 +150,13 @@ where
                         bounded = false;
                         return DVector::from(Vec::new());
                     }
-                    self.pfh(&result, input, &self.normals, &mut cache, &mut cached_keys)
+                    self.pfh(
+                        &result,
+                        search.input(),
+                        normals,
+                        &mut cache,
+                        &mut cached_keys,
+                    )
                 })
                 .collect::<Vec<_>>()
         } else {
@@ -168,7 +172,13 @@ where
                         bounded = false;
                         return DVector::from(Vec::new());
                     }
-                    self.pfh(&result, input, &self.normals, &mut cache, &mut cached_keys)
+                    self.pfh(
+                        &result,
+                        search.input(),
+                        normals,
+                        &mut cache,
+                        &mut cached_keys,
+                    )
                 })
                 .collect::<Vec<_>>()
         };
