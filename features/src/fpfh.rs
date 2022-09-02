@@ -44,15 +44,12 @@ impl FpfhEstimation {
             if pivot == index {
                 continue;
             }
-            let pair = {
-                let pair = PfhPair::try_new(
-                    &[points[pivot].coords().xyz(), normals[pivot].normal().xyz()],
-                    &[points[index].coords().xyz(), normals[index].normal().xyz()],
-                );
-                match pair {
-                    Some(pair) => pair,
-                    None => continue,
-                }
+            let pair = match PfhPair::try_new(
+                &[points[pivot].coords().xyz(), normals[pivot].normal().xyz()],
+                &[points[index].coords().xyz(), normals[index].normal().xyz()],
+            ) {
+                Some(pair) => pair,
+                None => continue,
             };
             let data = [
                 ((pair.theta.clone() + T::pi()) / T::two_pi() * num[0].clone()),
