@@ -8,6 +8,8 @@ version = "0.1.0"
 pcc-common = {path = "../common"}
 pcc-search = {path = "../search"}
 # External crates
+bitflags = "1"
 nalgebra = "0"
 num = "0"
 rand = "0"
+rayon = "1"

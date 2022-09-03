@@ -7,7 +7,10 @@ use nalgebra::{Affine3, ComplexField, RealField, Vector2, Vector4};
 use num::{Float, ToPrimitive};
 
 pub use self::{creation::CreateOptions, surface::SurfaceInfo};
-use crate::{point::PointRange, point_cloud::PointCloud};
+use crate::{
+    point::{Centroid, PointRange},
+    point_cloud::PointCloud,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RangeImage<P>
@@ -302,5 +305,41 @@ where
             angular_resolution: self.angular_resolution,
             image_offset,
         }
+    }
+}
+
+impl<P: PointRange> RangeImage<P>
+where
+    P::Data: RealField,
+{
+    pub fn centroid_1d(
+        &self,
+        (x, y): (usize, usize),
+        delta: (isize, isize),
+        num: usize,
+    ) -> Option<<P as Centroid>::Result>
+    where
+        P: Centroid,
+        <P as Centroid>::Accumulator: Default,
+    {
+        let index = (0..num)
+            .map(|index| {
+                (
+                    (x as isize) + (index as isize) * delta.0,
+                    (y as isize) + (index as isize) * delta.1,
+                )
+            })
+            .map_while(|(x, y)| {
+                ((0..(self.width() as isize)).contains(&x)
+                    && (0..(self.height() as isize)).contains(&y))
+                .then_some((x as usize, y as usize))
+            });
+
+        let centroid = index.fold(<P as Centroid>::default_builder(), |mut acc, index| {
+            acc.accumulate(&self[index]);
+            acc
+        });
+
+        centroid.compute()
     }
 }

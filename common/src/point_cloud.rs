@@ -26,6 +26,11 @@ impl<P> PointCloud<P> {
         self.width
     }
 
+    #[inline]
+    pub fn index(&self, index: usize) -> [usize; 2] {
+        [index % self.width, index / self.width]
+    }
+
     pub fn height(&self) -> usize {
         assert_eq!(self.storage.len() % self.width, 0);
         self.storage.len() / self.width
@@ -138,7 +143,7 @@ impl<P: Clone> PointCloud<P> {
             let space = other.storage.spare_capacity_mut();
 
             for (index, obj) in self.storage.iter().enumerate() {
-                let (x, y) = (index % width, index / width);
+                let [x, y] = self.index(index);
                 space[x * width + y].write(obj.clone());
             }
 
@@ -399,8 +404,8 @@ where
             .storage
             .iter()
             .enumerate()
-            .map(|(index, point)| (index % self.width, index / self.width, point))
-            .map(|(x, y, point)| {
+            .map(|(index, point)| (self.index(index), point))
+            .map(|([x, y], point)| {
                 (
                     Vector3::new(
                         P::Data::from_usize(x).unwrap(),

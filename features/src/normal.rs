@@ -17,7 +17,8 @@ impl<T: Scalar> NormalEstimation<T> {
     }
 }
 
-impl<'a, T, I, O, S> Feature<&'a PointCloud<I>, PointCloud<O>, S, SearchType<T>> for NormalEstimation<T>
+impl<'a, T, I, O, S> Feature<&'a PointCloud<I>, PointCloud<O>, S, SearchType<T>>
+    for NormalEstimation<T>
 where
     T: RealField,
     I: Point<Data = T> + 'a,
