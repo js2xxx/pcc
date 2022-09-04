@@ -13,7 +13,7 @@ pub use self::{
     border::{BorderEstimation, BorderTraits},
     boundary::BoundaryEstimation,
     fpfh::FpfhEstimation,
-    narf::{Narf, SurfacePatch},
+    narf::{Narf, SurfacePatch, NarfEstimation},
     normal::NormalEstimation,
     pfh::PfhEstimation,
     vfh::VfhEstimation,

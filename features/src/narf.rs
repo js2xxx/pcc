@@ -1,8 +1,9 @@
-use std::array;
+use std::{array, mem};
 
-use nalgebra::{convert, Affine3, RealField, Vector2, Vector4};
+use nalgebra::{convert, Affine3, RealField, Rotation3, Translation3, Vector2, Vector3, Vector4};
 use num::{Float, ToPrimitive};
-use pcc_common::{point::PointRange, range_image::RangeImage};
+use pcc_common::{feature::Feature, point::PointRange, range_image::RangeImage};
+use rayon::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct SurfacePatch<T> {
@@ -118,7 +119,7 @@ impl<T: RealField + Float + ToPrimitive> Narf<T> {
         let position = pose.inverse().matrix().column(3).into_owned();
         let mut surface_patch = SurfacePatch::new(range_image, &pose, pixel_size, world_size);
         surface_patch.blur(1);
-        let descriptor = Self::extract(desc_size, &surface_patch);
+        let descriptor = Self::extract(desc_size, &surface_patch, &mut Vec::new());
 
         Narf {
             position,
@@ -128,7 +129,43 @@ impl<T: RealField + Float + ToPrimitive> Narf<T> {
         }
     }
 
-    fn extract(desc_size: usize, surface_patch: &SurfacePatch<T>) -> Vec<T> {
+    pub fn rotated_into<P>(
+        range_image: &RangeImage<P>,
+        pose: Affine3<T>,
+        desc_size: usize,
+        pixel_size: usize,
+        world_size: T,
+    ) -> impl Iterator<Item = Narf<T>>
+    where
+        P: PointRange<Data = T>,
+    {
+        let orig = Self::new(range_image, pose, desc_size, pixel_size, world_size);
+        let (rotations, _) = orig.rotations();
+
+        rotations
+            .into_iter()
+            .map(move |rotation| orig.clone().rotate(rotation))
+    }
+
+    pub fn rotated_into_par<P>(
+        range_image: &RangeImage<P>,
+        pose: Affine3<T>,
+        desc_size: usize,
+        pixel_size: usize,
+        world_size: T,
+    ) -> impl ParallelIterator<Item = Narf<T>>
+    where
+        P: PointRange<Data = T>,
+    {
+        let orig = Self::new(range_image, pose, desc_size, pixel_size, world_size);
+        let (rotations, _) = orig.rotations();
+
+        rotations
+            .into_par_iter()
+            .map(move |rotation| orig.clone().rotate(rotation))
+    }
+
+    fn extract(desc_size: usize, surface_patch: &SurfacePatch<T>, storage: &mut Vec<T>) -> Vec<T> {
         let num_beams = (surface_patch.pixel_size as f64 / 2.).ceil() as usize;
         let (weight_factor, weight_offset) = {
             let weight_first = convert::<_, T>(2.);
@@ -178,12 +215,72 @@ impl<T: RealField + Float + ToPrimitive> Narf<T> {
 
             Float::atan2(sum.fold(T::zero(), |acc, e| acc + e), max_distance) / T::pi()
         });
-        iter.collect()
+        storage.clear();
+        storage.extend(iter);
+        mem::take(storage)
+    }
+
+    pub fn rotations(&self) -> (Vec<T>, Vec<T>) {
+        let num_angle_steps = self.descriptor.len().max(36);
+        let min_angle = convert::<_, T>(70.).to_radians();
+
+        let angle_step = T::two_pi() / convert(num_angle_steps as f64);
+        let angle_step2 = T::two_pi() / convert(self.descriptor.len() as f64);
+        let score_norm = Float::recip(convert::<_, T>(self.descriptor.len() as f64));
+
+        let orientations = (0..num_angle_steps).map(|step| {
+            let angle = angle_step * convert(step as f64);
+            let score = self.descriptor.iter().enumerate().map(|(index, value)| {
+                let angle2 = angle_step2 * convert(index as f64);
+                let weight = Float::powi(
+                    T::one() - Float::abs((angle - angle2) % T::two_pi()) / T::pi(),
+                    2,
+                );
+                *value * weight
+            });
+            let score = score.fold(T::zero(), |acc, e| acc + e) * score_norm + convert(0.5);
+            (score, angle)
+        });
+        let mut orientations = {
+            let mut vec = orientations.collect::<Vec<_>>();
+            vec.sort_by(|(s1, _), (s2, _)| s1.partial_cmp(s2).unwrap_or(std::cmp::Ordering::Equal));
+            vec
+        };
+        let min = orientations.first().unwrap().0;
+        let max = orientations.last().unwrap().0;
+        let bound = orientations.partition_point(|&(x, _)| x <= max - (max - min) * convert(0.2));
+        orientations.truncate(bound);
+
+        let mut rotations = Vec::new();
+        let mut strengths = Vec::new();
+        while let Some((score, angle)) = orientations.pop() {
+            rotations.push(angle);
+            strengths.push(score);
+            orientations.retain(|&(_, angle)| {
+                (angle - *rotations.last().unwrap()) % T::two_pi() < min_angle
+            });
+        }
+        (rotations, strengths)
+    }
+
+    pub fn rotate(self, rotation: T) -> Self {
+        let mut new = self;
+        new.transform = Rotation3::new(Vector3::z() * -rotation) * new.transform;
+        new.surface_patch.rotation = rotation;
+        let mut storage = new.descriptor;
+        new.descriptor = Self::extract(storage.len(), &new.surface_patch, &mut storage);
+        new
+    }
+
+    pub fn rotate_all(self, rotations: &[T]) -> impl Iterator<Item = Self> + '_ {
+        rotations
+            .iter()
+            .map(move |&rotation| self.clone().rotate(rotation))
     }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Next2Window<I: Iterator> {
+struct Next2Window<I: Iterator> {
     windows: Option<I::Item>,
     inner: I,
 }
@@ -217,3 +314,64 @@ where
 }
 
 impl<I: ExactSizeIterator> ExactSizeIterator for Next2Window<I> where I::Item: Clone {}
+
+pub struct NarfEstimation<T: RealField> {
+    pub desc_size: usize,
+    pub pixel_size: usize,
+    pub world_size: T,
+    pub rotate: bool,
+}
+
+impl<T: RealField> NarfEstimation<T> {
+    pub fn new(desc_size: usize, pixel_size: usize, world_size: T, rotate: bool) -> Self {
+        NarfEstimation {
+            desc_size,
+            pixel_size,
+            world_size,
+            rotate,
+        }
+    }
+}
+
+impl<'a, T, P> Feature<&'a RangeImage<P>, Vec<Narf<T>>, (), ()> for NarfEstimation<T>
+where
+    T: RealField + Float + ToPrimitive,
+    P: PointRange<Data = T> + Sync,
+{
+    fn compute(&self, input: &'a RangeImage<P>, _: (), _: ()) -> Vec<Narf<T>> {
+        let transform = (0..input.len()).into_par_iter().filter_map(|index| {
+            let [x, y] = input.index(index);
+
+            let mut pedal = Vector4::zeros();
+            let normal = input.normal_within((x, y), 2, 1, None, Some(15), Some(&mut pedal))?;
+            Some(
+                Translation3::from(-pedal.xyz())
+                    * Rotation3::look_at_lh(&normal.xyz(), &Vector3::y()),
+            )
+        });
+
+        if self.rotate {
+            let narfs = transform.flat_map(|transform| {
+                Narf::rotated_into_par(
+                    input,
+                    convert(transform),
+                    self.desc_size,
+                    self.pixel_size,
+                    self.world_size,
+                )
+            });
+            narfs.collect()
+        } else {
+            let narfs = transform.map(|transform| {
+                Narf::new(
+                    input,
+                    convert(transform),
+                    self.desc_size,
+                    self.pixel_size,
+                    self.world_size,
+                )
+            });
+            narfs.collect()
+        }
+    }
+}
