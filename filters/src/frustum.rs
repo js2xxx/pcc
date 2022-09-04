@@ -1,4 +1,4 @@
-use std::{array, fmt::Debug};
+use std::fmt::Debug;
 
 use nalgebra::{matrix, RealField, Transform3};
 use pcc_common::{
@@ -79,9 +79,9 @@ impl<T: RealField> FrustumCulling<T> {
             &far_center + matrix![T::zero(); far_y_max; far_z_max], // Far, left, top
         ];
 
-        let points: [_; 7] = array::from_fn(|index| {
+        let points: [_; 7] = points.map(|point| {
             self.camera_pose
-                .transform_point(&points[index].clone().into())
+                .transform_point(&point.into())
                 .coords
                 .insert_row(3, T::one())
         });

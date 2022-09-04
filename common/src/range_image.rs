@@ -4,7 +4,7 @@ mod surface;
 use std::{mem, ops::Deref};
 
 use nalgebra::{Affine3, ComplexField, RealField, Vector2, Vector4};
-use num::{Float, ToPrimitive};
+use num::{Float, FromPrimitive, ToPrimitive};
 
 pub use self::{creation::CreateOptions, surface::SurfaceInfo};
 use crate::{
@@ -195,6 +195,30 @@ where
             &self.angular_resolution,
             &self.image_offset,
         )
+    }
+
+    #[inline]
+    pub fn image_to_point2(
+        &self,
+        image: &Vector2<usize>,
+        range: Option<P::Data>,
+    ) -> Vector4<P::Data> {
+        self.image_to_point(&image.map(|x| P::Data::from_usize(x).unwrap()), range)
+    }
+
+    #[inline]
+    pub fn point_to_image2(&self, point: &Vector4<P::Data>) -> (Vector2<usize>, P::Data) {
+        let (image, range) = self.point_to_image(point);
+        (image.map(|x| x.to_usize().unwrap()), range)
+    }
+
+    pub fn range_diff(&self, point: &Vector4<P::Data>) -> Option<P::Data> {
+        let (image, range) = self.point_to_image2(point);
+        if self.contains_key(image.x, image.y) {
+            return None;
+        }
+        let orig = self.point_cloud[(image.x, image.y)].range();
+        Some(orig - range)
     }
 }
 

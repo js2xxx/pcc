@@ -1,4 +1,4 @@
-use std::{array, collections::HashSet};
+use std::collections::HashSet;
 
 use nalgebra::{
     base::dimension::Dynamic, convert, Const, DMatrix, DVector, MatrixSliceMut1xX, RealField,
@@ -37,7 +37,9 @@ impl FpfhEstimation {
         P: Point<Data = T>,
         N: Normal<Data = T>,
     {
-        let num: [T; 3] = array::from_fn(|index| convert(hist[index].ncols() as f64));
+        let num = hist
+            .each_ref()
+            .map(|hist| convert::<_, T>(hist.ncols() as f64));
         let inc = convert::<_, T>(HIST_MAX) / convert((indices.len() - 1) as f64);
 
         for index in indices.iter().map(|&(index, _)| index) {
@@ -92,8 +94,9 @@ impl FpfhEstimation {
 
         let mut ret = vec![0; indices.len()];
 
-        let mut hist: [_; 3] =
-            array::from_fn(|index| DMatrix::zeros(indices.len(), self.subdivision[index]));
+        let mut hist = self
+            .subdivision
+            .map(|sub| DMatrix::zeros(indices.len(), sub));
 
         for (ii, index) in indices.into_iter().enumerate() {
             search.search(input[index].coords(), ty.clone(), &mut result);
@@ -136,7 +139,7 @@ impl FpfhEstimation {
             }
         }
 
-        let sum: [T; 3] = array::from_fn(|index| convert::<_, T>(HIST_MAX) / sum[index].clone());
+        let sum = sum.map(|sum| convert::<_, T>(HIST_MAX) / sum);
 
         ret.columns_range_mut(0..hist[0].ncols())
             .apply(|elem| *elem *= sum[0].clone());

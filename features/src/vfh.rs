@@ -1,5 +1,3 @@
-use std::array;
-
 use nalgebra::{convert, DVector, RealField, Scalar, Vector4};
 use num::ToPrimitive;
 use pcc_common::{
@@ -53,9 +51,8 @@ impl<T: RealField + ToPrimitive> VfhEstimation<T> {
         P: Point<Data = T>,
         N: Normal<Data = T>,
     {
-        let num: [T; 4] = array::from_fn(|index| convert(self.subdivision[index] as f64));
-        let mut hist: [DVector<T>; 4] =
-            array::from_fn(|index| DVector::zeros(self.subdivision[index]));
+        let num = self.subdivision.map(|sub| convert::<_, T>(sub as f64));
+        let mut hist = self.subdivision.map(DVector::zeros);
         let max_distance = points.iter().fold(T::zero(), |acc, point| {
             acc.max((point.coords() - cp).norm())
         });
