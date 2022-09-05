@@ -176,15 +176,14 @@ where
             } else {
                 normal
             }
+            .insert_row(3, zero())
         };
 
         if let Some(pedal) = pedal {
-            *pedal = (&normal * (normal.dot(&surface_info.mean) - normal.dot(&pivot.xyz()))
-                + pivot.xyz())
-            .insert_row(3, zero());
+            *pedal = &normal * (normal.xyz().dot(&surface_info.mean) - normal.dot(pivot)) + pivot;
         }
 
-        Some(normal.insert_row(3, zero()))
+        Some(normal)
     }
 
     pub fn impact_angle(&self, index: (usize, usize), radius: usize) -> Option<P::Data> {

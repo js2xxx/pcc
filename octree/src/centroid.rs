@@ -87,21 +87,21 @@ impl<T: RealField + ToPrimitive + Copy> OcTreePcCentroid<T> {
         let key = self.inner.coords_to_key(coords);
         self.inner.root().map(|root| {
             let node = root.find(&key, self.inner.depth());
-            self.count_recursive(unsafe { node.as_ref() }).consume()
+            Self::count_recursive(unsafe { node.as_ref() }).consume()
         })
     }
 
     pub fn count(&self) -> Option<Vector4<T>> {
-        { self.inner.root() }.map(|root| self.count_recursive(root).consume())
+        { self.inner.root() }.map(|root| Self::count_recursive(root).consume())
     }
 
-    fn count_recursive(&self, node: &Node<(), Leaf<T>>) -> Leaf<T> {
+    fn count_recursive(node: &Node<(), Leaf<T>>) -> Leaf<T> {
         match node {
             Node::Leaf { content } => *content,
             Node::Branch { children, .. } => children
                 .iter()
                 .flatten()
-                .map(|child| self.count_recursive(unsafe { child.as_ref() }))
+                .map(|child| Self::count_recursive(unsafe { child.as_ref() }))
                 .sum(),
         }
     }
