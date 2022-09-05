@@ -7,8 +7,7 @@ use std::{
     ops::{Deref, Index, IndexMut},
 };
 
-use nalgebra::{ComplexField, Matrix3, Matrix3x4, Matrix4, Matrix4x3, RealField, Vector3, Vector4};
-use num::{one, FromPrimitive, Zero};
+use nalgebra::{ComplexField, RealField, Vector4};
 
 pub use self::reference::{AsPointCloud, PointCloudRef};
 use self::transforms::Transform;
@@ -22,6 +21,7 @@ pub struct PointCloud<P> {
 }
 
 impl<P> PointCloud<P> {
+    #[inline]
     pub fn width(&self) -> usize {
         assert_eq!(self.storage.len() % self.width, 0);
         self.width
@@ -32,15 +32,18 @@ impl<P> PointCloud<P> {
         [index % self.width, index / self.width]
     }
 
+    #[inline]
     pub fn height(&self) -> usize {
         assert_eq!(self.storage.len() % self.width, 0);
         self.storage.len() / self.width
     }
 
+    #[inline]
     pub fn is_bounded(&self) -> bool {
         self.bounded
     }
 
+    #[inline]
     pub fn into_vec(self) -> Vec<P> {
         self.storage
     }
@@ -48,6 +51,7 @@ impl<P> PointCloud<P> {
     /// # Safety
     ///
     /// The width and boundedness of the point cloud must be valid.
+    #[inline]
     pub unsafe fn storage(&mut self) -> &mut Vec<P> {
         &mut self.storage
     }
@@ -55,11 +59,6 @@ impl<P> PointCloud<P> {
     #[inline]
     pub fn select<'a>(&'a self, indices: Cow<'a, [usize]>) -> PointCloudRef<'a, P> {
         PointCloudRef::new(self, Some(indices))
-    }
-
-    #[inline]
-    pub fn as_ref(&self) -> PointCloudRef<'_, P> {
-        PointCloudRef::new(self, None)
     }
 }
 
@@ -74,6 +73,7 @@ impl<P: Clone> PointCloud<P> {
         })
     }
 
+    #[inline]
     pub fn create_sub(&self, indices: &[usize], width: usize) -> Self {
         self.try_create_sub(indices, width)
             .expect("The length of the vector must be divisible by width")
@@ -83,6 +83,7 @@ impl<P: Clone> PointCloud<P> {
 impl<P> Deref for PointCloud<P> {
     type Target = [P];
 
+    #[inline]
     fn deref(&self) -> &Self::Target {
         &self.storage
     }
@@ -91,12 +92,14 @@ impl<P> Deref for PointCloud<P> {
 impl<P> Index<usize> for PointCloud<P> {
     type Output = P;
 
+    #[inline]
     fn index(&self, index: usize) -> &Self::Output {
         &self.storage[index]
     }
 }
 
 impl<P> IndexMut<usize> for PointCloud<P> {
+    #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.storage[index]
     }
@@ -105,18 +108,21 @@ impl<P> IndexMut<usize> for PointCloud<P> {
 impl<P> Index<(usize, usize)> for PointCloud<P> {
     type Output = P;
 
+    #[inline]
     fn index(&self, (x, y): (usize, usize)) -> &Self::Output {
         &self.storage[y * self.width + x]
     }
 }
 
 impl<P> IndexMut<(usize, usize)> for PointCloud<P> {
+    #[inline]
     fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut Self::Output {
         &mut self.storage[y * self.width + x]
     }
 }
 
 impl<P> PointCloud<P> {
+    #[inline]
     pub fn new() -> Self {
         PointCloud {
             storage: Vec::new(),
@@ -129,6 +135,7 @@ impl<P> PointCloud<P> {
     ///
     /// The caller must ensure that the points in the cloud are all `bounded`
     /// and the length of `storage` is divisible by `width`.
+    #[inline]
     pub unsafe fn from_raw_parts(storage: Vec<P>, width: usize, bounded: bool) -> Self {
         PointCloud {
             storage,
@@ -139,6 +146,7 @@ impl<P> PointCloud<P> {
 }
 
 impl<P: Clone> PointCloud<P> {
+    #[inline]
     pub fn transpose(&self) -> Self {
         let mut other = Self::new();
         self.transpose_into(&mut other);
@@ -187,6 +195,7 @@ impl<P: Data> PointCloud<P> {
         self.bounded = self.storage.iter().all(|p| p.is_finite());
     }
 
+    #[inline]
     pub fn from_vec(storage: Vec<P>, width: usize) -> Self {
         PointCloud::try_from_vec(storage, width)
             .expect("The length of the vector must be divisible by width")
@@ -194,61 +203,13 @@ impl<P: Data> PointCloud<P> {
 }
 
 impl<P> Default for PointCloud<P> {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<P: Point> PointCloud<P>
-where
-    P::Data: RealField,
-{
-    #[inline]
-    pub fn proj_matrix(&self) -> (Matrix3x4<P::Data>, P::Data) {
-        let mut matrix = Matrix3x4::zeros();
-        let residual = self.proj_matrix_into(&mut matrix);
-        (matrix, residual)
-    }
-
-    pub fn proj_matrix_into(&self, matrix: &mut Matrix3x4<P::Data>) -> P::Data {
-        matrix.set_zero();
-
-        let mut xxt = Matrix4::zeros();
-        let mut xut = Matrix4x3::zeros();
-        let iter = self
-            .storage
-            .iter()
-            .enumerate()
-            .map(|(index, point)| (self.index(index), point))
-            .map(|([x, y], point)| {
-                (
-                    Vector3::new(
-                        P::Data::from_usize(x).unwrap(),
-                        P::Data::from_usize(y).unwrap(),
-                        one(),
-                    ),
-                    point.coords(),
-                )
-            });
-        for (u, x) in iter.clone() {
-            xxt.syger(one(), x, x, one());
-            xut.ger(one(), x, &u, one());
-        }
-        let cholesky = xxt.cholesky().unwrap();
-        for mut column in xut.column_iter_mut() {
-            cholesky.solve_mut(&mut column);
-        }
-        xut.transpose_to(matrix);
-
-        let mut j = Matrix3::zeros();
-        for (u, x) in iter.clone() {
-            let axmu = &*matrix * x - &u;
-            j.syger(one(), &axmu, &axmu, one());
-        }
-        let [[residual, ..]] = j.symmetric_eigenvalues().data.0;
-        residual
-    }
-}
+impl<P: Point> PointCloud<P> where P::Data: RealField {}
 
 impl<P: Point> PointCloud<P>
 where
@@ -280,10 +241,14 @@ impl<P: Point> PointCloud<P>
 where
     <P as Data>::Data: ComplexField,
 {
+    #[inline]
     pub fn demean(&self, centroid: &Vector4<P::Data>, out: &mut Self) {
         out.clone_from(self);
+        out.demean_mut(centroid);
+    }
 
-        for point in &mut out.storage {
+    pub fn demean_mut(&mut self, centroid: &Vector4<P::Data>) {
+        for point in &mut self.storage {
             point.coords_mut().x -= centroid.x.clone();
             point.coords_mut().y -= centroid.y.clone();
             point.coords_mut().z -= centroid.z.clone();

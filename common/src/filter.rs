@@ -19,11 +19,17 @@ pub trait Filter<T: ?Sized> {
 /// instead of keeping all parts consistent.
 pub trait ApproxFilter<T> {
     fn filter(&mut self, input: &T) -> T;
+
+    #[inline]
+    fn filter_mut(&mut self, obj: &mut T) {
+        *obj = self.filter(obj);
+    }
 }
 
 impl<P: Data> ApproxFilter<PointCloud<P>> for [usize] {
+    #[inline]
     fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {
-        PointCloud::from_vec(self.iter().map(|&index| input[index].clone()).collect(), 1)
+        input.create_sub(self, 1)
     }
 }
 
@@ -56,5 +62,11 @@ where
         let mut storage = Vec::from(&**input);
         storage.retain(|point| (self)(point));
         PointCloud::from_vec(storage, 1)
+    }
+
+    fn filter_mut(&mut self, obj: &mut PointCloud<P>) {
+        let storage = unsafe { obj.storage() };
+        storage.retain(|point| (self)(point));
+        obj.reinterpret(1);
     }
 }

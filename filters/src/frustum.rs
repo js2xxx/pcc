@@ -126,14 +126,20 @@ impl<T: RealField, P: Point<Data = T>> Filter<[P]> for FrustumCulling<T> {
 }
 
 impl<T: RealField, P: Point<Data = T>> ApproxFilter<PointCloud<P>> for FrustumCulling<T> {
+    #[inline]
     fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {
+        let mut new = input.clone();
+        self.filter_mut(&mut new);
+        new
+    }
+
+    fn filter_mut(&mut self, obj: &mut PointCloud<P>) {
         let planes = self.compute_planes();
 
-        let mut storage = Vec::from(&**input);
+        let storage = unsafe { obj.storage() };
         storage.retain(|point| {
             { planes.iter() }.all(|plane| plane.same_side_with_normal(point.coords()))
         });
-
-        PointCloud::from_vec(storage, 1)
+        obj.reinterpret(1)
     }
 }

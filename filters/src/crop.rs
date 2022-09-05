@@ -69,10 +69,17 @@ impl<T: RealField, P: Point<Data = T>> Filter<[P]> for CropBox<T> {
 }
 
 impl<T: RealField, P: Point<Data = T>> ApproxFilter<PointCloud<P>> for CropBox<T> {
+    #[inline]
     fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {
+        let mut new = input.clone();
+        self.filter_mut(&mut new);
+        new
+    }
+
+    fn filter_mut(&mut self, obj: &mut PointCloud<P>) {
         let center = (&self.min + &self.max).unscale(convert(2.)).xyz();
 
-        let mut storage = Vec::from(&**input);
+        let storage = unsafe { obj.storage() };
         storage.retain(|point| {
             let coords = &point.coords().xyz();
             let delta = coords - &center;
@@ -81,7 +88,7 @@ impl<T: RealField, P: Point<Data = T>> ApproxFilter<PointCloud<P>> for CropBox<T
 
             (self.min.xyz() <= local_coords && local_coords <= self.max.xyz()) ^ self.negative
         });
-        PointCloud::from_vec(storage, 1)
+        obj.reinterpret(1)
     }
 }
 
@@ -91,23 +98,32 @@ pub struct CropPlane<T: Scalar> {
 }
 
 impl<T: RealField> CropPlane<T> {
+    #[inline]
     fn inner<P: Point<Data = T>>(&self) -> impl FnMut(&P) -> bool + '_ {
         |point| self.plane.same_side_with_normal(point.coords())
     }
 }
 
 impl<T: RealField, P: Point<Data = T>> Filter<[P]> for CropPlane<T> {
+    #[inline]
     fn filter_indices(&mut self, input: &[P]) -> Vec<usize> {
         self.inner().filter_indices(input)
     }
 
+    #[inline]
     fn filter_all_indices(&mut self, input: &[P]) -> (Vec<usize>, Vec<usize>) {
         self.inner().filter_all_indices(input)
     }
 }
 
 impl<T: RealField, P: Point<Data = T>> ApproxFilter<PointCloud<P>> for CropPlane<T> {
+    #[inline]
     fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {
         self.inner().filter(input)
+    }
+
+    #[inline]
+    fn filter_mut(&mut self, obj: &mut PointCloud<P>) {
+        self.inner().filter_mut(obj)
     }
 }

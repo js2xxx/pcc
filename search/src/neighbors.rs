@@ -4,7 +4,7 @@ use nalgebra::{ComplexField, Matrix3, Matrix3x4, RealField, Vector2, Vector4};
 use num::{zero, FromPrimitive, ToPrimitive};
 use pcc_common::{
     point::Point,
-    point_cloud::PointCloud,
+    point_cloud::{AsPointCloud, PointCloud},
     search::{Search, SearchType},
 };
 use pcc_kdtree::{KnnResultSet, ResultSet};

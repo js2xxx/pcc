@@ -107,18 +107,25 @@ impl<T: RealField + ToPrimitive, P: Point<Data = T>> Filter<PointCloud<P>>
 impl<T: RealField + ToPrimitive, P: Point<Data = T>> ApproxFilter<PointCloud<P>>
     for StatOutlierRemoval<T>
 {
+    #[inline]
     fn filter(&mut self, input: &PointCloud<P>) -> PointCloud<P> {
-        let (distance, threshold) = self.filter_data(input);
+        let mut new = input.clone();
+        self.filter_mut(&mut new);
+        new
+    }
 
-        let mut output = Vec::from(&**input);
+    fn filter_mut(&mut self, obj: &mut PointCloud<P>) {
+        let (distance, threshold) = self.filter_data(obj);
+
+        let storage = unsafe { obj.storage() };
         let mut index = 0;
-        output.retain(|_| {
+        storage.retain(|_| {
             let ret = (distance[index] <= threshold) ^ self.negative;
             index += 1;
             ret
         });
 
-        PointCloud::from_vec(output, 1)
+        obj.reinterpret(1)
     }
 }
 

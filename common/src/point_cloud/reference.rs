@@ -1,7 +1,10 @@
 use std::{borrow::Cow, ops::Index};
 
-use nalgebra::{convert, one, zero, ComplexField, Matrix3, RealField, SVector, Vector4};
-use num::FromPrimitive;
+use nalgebra::{
+    convert, one, zero, ComplexField, Matrix3, Matrix3x4, Matrix4, Matrix4x3, RealField, SVector,
+    Vector3, Vector4,
+};
+use num::{FromPrimitive, Zero};
 
 use super::PointCloud;
 use crate::point::{Centroid, Data, Point, PointViewpoint};
@@ -63,14 +66,16 @@ impl<'a, P> Index<(usize, usize)> for PointCloudRef<'a, P> {
     }
 }
 
-pub trait AsPointCloud<'a, P> {
-    fn into_inner(self) -> &'a PointCloud<P>;
+pub trait AsPointCloud<'a, P: 'a> {
+    fn inner(&self) -> &'a PointCloud<P>;
+
+    fn as_ref(&self) -> PointCloudRef<'a, P>;
 
     fn is_bounded(&self) -> bool;
 
     fn data_len(&self) -> usize;
 
-    type DataIter<'b>: Iterator<Item = &'b P>
+    type DataIter<'b>: Iterator<Item = &'b P> + Clone
     where
         Self: 'b,
         P: 'b;
@@ -261,6 +266,59 @@ pub trait AsPointCloud<'a, P> {
         }
     }
 
+    #[inline]
+    fn proj_matrix(&self) -> (Matrix3x4<P::Data>, P::Data)
+    where
+        P: Point,
+        P::Data: RealField,
+    {
+        let mut matrix = Matrix3x4::zeros();
+        let residual = self.proj_matrix_into(&mut matrix);
+        (matrix, residual)
+    }
+
+    fn proj_matrix_into(&self, matrix: &mut Matrix3x4<P::Data>) -> P::Data
+    where
+        P: Point,
+        P::Data: RealField,
+    {
+        matrix.set_zero();
+
+        let mut xxt = Matrix4::zeros();
+        let mut xut = Matrix4x3::zeros();
+        let iter = self
+            .data_iter()
+            .enumerate()
+            .map(|(index, point)| (self.inner().index(index), point))
+            .map(|([x, y], point)| {
+                (
+                    Vector3::new(
+                        P::Data::from_usize(x).unwrap(),
+                        P::Data::from_usize(y).unwrap(),
+                        one(),
+                    ),
+                    point.coords(),
+                )
+            });
+        for (u, x) in iter.clone() {
+            xxt.syger(one(), x, x, one());
+            xut.ger(one(), x, &u, one());
+        }
+        let cholesky = xxt.cholesky().unwrap();
+        for mut column in xut.column_iter_mut() {
+            cholesky.solve_mut(&mut column);
+        }
+        xut.transpose_to(matrix);
+
+        let mut j = Matrix3::zeros();
+        for (u, x) in iter.clone() {
+            let axmu = &*matrix * x - &u;
+            j.syger(one(), &axmu, &axmu, one());
+        }
+        let [[residual, ..]] = j.symmetric_eigenvalues().data.0;
+        residual
+    }
+
     fn box_select(&self, min: &Vector4<P::Data>, max: &Vector4<P::Data>) -> Vec<usize>
     where
         P: Point,
@@ -370,10 +428,18 @@ pub trait AsPointCloud<'a, P> {
     }
 }
 
-impl<'a, P> AsPointCloud<'a, P> for PointCloudRef<'a, P> {
+impl<'a, P> AsPointCloud<'a, P> for PointCloudRef<'a, P>
+where
+    P: Clone,
+{
     #[inline]
-    fn into_inner(self) -> &'a PointCloud<P> {
+    fn inner(&self) -> &'a PointCloud<P> {
         self.inner
+    }
+
+    #[inline]
+    fn as_ref(&self) -> PointCloudRef<'a, P> {
+        self.clone()
     }
 
     #[inline]
@@ -386,7 +452,7 @@ impl<'a, P> AsPointCloud<'a, P> for PointCloudRef<'a, P> {
         self.inner.len()
     }
 
-    type DataIter<'b> = impl Iterator<Item = &'b P> where Self: 'b, P: 'b;
+    type DataIter<'b> = impl Iterator<Item = &'b P> + Clone where Self: 'b, P: 'b;
 
     #[inline]
     fn data_iter(&self) -> Self::DataIter<'_> {
@@ -401,8 +467,13 @@ impl<'a, P> AsPointCloud<'a, P> for PointCloudRef<'a, P> {
 
 impl<'a, P> AsPointCloud<'a, P> for &'a PointCloud<P> {
     #[inline]
-    fn into_inner(self) -> &'a PointCloud<P> {
+    fn inner(&self) -> &'a PointCloud<P> {
         self
+    }
+
+    #[inline]
+    fn as_ref(&self) -> PointCloudRef<'a, P> {
+        PointCloudRef::new(self, None)
     }
 
     #[inline]
@@ -415,7 +486,7 @@ impl<'a, P> AsPointCloud<'a, P> for &'a PointCloud<P> {
         self.storage.len()
     }
 
-    type DataIter<'b> = impl Iterator<Item = &'b P>
+    type DataIter<'b> = impl Iterator<Item = &'b P> + Clone
     where
         Self: 'b,
         P: 'b;
