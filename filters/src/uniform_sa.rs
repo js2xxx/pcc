@@ -5,7 +5,7 @@ use num::ToPrimitive;
 use pcc_common::{
     filter::{ApproxFilter, Filter},
     point::Point,
-    point_cloud::PointCloud,
+    point_cloud::{PointCloud, AsPointCloud},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -4,7 +4,7 @@ use num::{one, Float, FromPrimitive, ToPrimitive};
 use super::{image_to_point, point_to_image, unobserved, RangeImage};
 use crate::{
     point::{Point, PointRange, PointViewpoint},
-    point_cloud::PointCloud,
+    point_cloud::{AsPointCloud, PointCloud},
 };
 
 pub struct CreateOptions<'a, P: Point> {

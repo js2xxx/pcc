@@ -3,7 +3,7 @@ use num::ToPrimitive;
 use pcc_common::{
     feature::Feature,
     point::{Normal, Point},
-    point_cloud::PointCloud,
+    point_cloud::{AsPointCloud, PointCloud},
 };
 
 use crate::{pfh::PfhPair, HIST_MAX};
