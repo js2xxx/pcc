@@ -59,3 +59,10 @@ where
 
     Some((normal.insert_row(3, T::zero()), curvature))
 }
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Interpolation {
+    None,
+    Trilinear,
+    Quadrilinear,
+}

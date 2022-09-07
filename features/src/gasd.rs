@@ -1,12 +1,13 @@
 use nalgebra::{
-    convert, DVector, IsometryMatrix3, Matrix3, RealField, Rotation3, Scalar, Translation3,
-    Vector3, Vector4,
+    convert, DVector, IsometryMatrix3, Matrix3, RealField, Rotation3, SVector, Scalar,
+    Translation3, Vector2, Vector3, Vector4,
 };
 use num::ToPrimitive;
 use pcc_common::{
     feature::Feature,
     point::Point,
     point_cloud::{AsPointCloud, PointCloud},
+    Interpolation,
 };
 
 use crate::HIST_MAX;
@@ -27,15 +28,22 @@ pub struct GasdEstimation<T: Scalar> {
     pub view_direction: Vector3<T>,
     pub half_grid_size: usize,
     pub hist_size: usize,
+    pub interp: Interpolation,
 }
 
 impl<T: Scalar> GasdEstimation<T> {
     #[inline]
-    pub fn new(view_direction: Vector3<T>, half_grid_size: usize, hist_size: usize) -> Self {
+    pub fn new(
+        view_direction: Vector3<T>,
+        half_grid_size: usize,
+        hist_size: usize,
+        interp: Interpolation,
+    ) -> Self {
         GasdEstimation {
             view_direction,
             half_grid_size,
             hist_size,
+            interp,
         }
     }
 
@@ -73,13 +81,75 @@ impl<T: Scalar> GasdEstimation<T> {
         let grid_size = self.half_grid_size * 2;
         let half_grid_size = convert::<_, T>(self.half_grid_size as f64);
         let scaled = { pivot.xyz() }.map(|x| x / max_coord.clone() * half_grid_size.clone());
-        let coords = scaled
+        let mut coords = scaled
             .map(|x| x + half_grid_size.clone())
             .insert_row(3, bin);
+        if self.interp != Interpolation::None {
+            coords.apply(|x| *x -= convert(0.5));
+        }
         let bins = coords.map(|x| x.floor().to_usize().unwrap());
         let g_index = ((bins.x + 1) * (grid_size + 2) + bins.y + 1) * (grid_size + 2) + bins.z + 1;
         let h_index = bins.w + 1;
-        hist[g_index][h_index] += inc;
+        match self.interp {
+            Interpolation::None => hist[g_index][h_index] += inc,
+            interp => {
+                let [[x, y, z]] = (pivot.xyz() - bins.xyz().map(|x| convert(x as f64))).data.0;
+
+                let d1 = inc.clone() * x;
+                let d0 = inc - d1.clone();
+                let d = Vector2::new(d1, d0);
+
+                let d1 = &d * y;
+                let d0 = &d - &d1;
+                let d = Vector4::new(d1[0].clone(), d0[0].clone(), d1[1].clone(), d0[1].clone());
+
+                let d1 = &d * z;
+                let d0 = &d - &d1;
+                let d = SVector::<_, 8>::from([
+                    d1[0].clone(),
+                    d0[0].clone(),
+                    d1[1].clone(),
+                    d0[1].clone(),
+                    d1[2].clone(),
+                    d0[2].clone(),
+                    d1[3].clone(),
+                    d0[3].clone(),
+                ]);
+
+                if interp == Interpolation::Trilinear {
+                    hist[g_index][h_index] += d[7].clone();
+                    hist[g_index + 1][h_index] += d[6].clone();
+                    hist[g_index + (grid_size + 2)][h_index] += d[5].clone();
+                    hist[g_index + (grid_size + 3)][h_index] += d[4].clone();
+                    hist[g_index + (grid_size + 2) * (grid_size + 2)][h_index] += d[3].clone();
+                    hist[g_index + (grid_size + 2) * (grid_size + 2) + 1][h_index] += d[2].clone();
+                    hist[g_index + (grid_size + 3) * (grid_size + 2)][h_index] += d[1].clone();
+                    hist[g_index + (grid_size + 3) * (grid_size + 2) + 1][h_index] += d[0].clone();
+                } else {
+                    let d1 = d.scale(convert(bins[3] as f64));
+                    let d0 = &d - &d1;
+
+                    hist[g_index][h_index] += d1[7].clone();
+                    hist[g_index][h_index + 1] += d0[7].clone();
+                    hist[g_index + 1][h_index] += d1[6].clone();
+                    hist[g_index + 1][h_index + 1] += d0[6].clone();
+                    hist[g_index + (grid_size + 2)][h_index] += d1[5].clone();
+                    hist[g_index + (grid_size + 2)][h_index + 1] += d0[5].clone();
+                    hist[g_index + (grid_size + 3)][h_index] += d1[4].clone();
+                    hist[g_index + (grid_size + 3)][h_index + 1] += d0[4].clone();
+                    hist[g_index + (grid_size + 2) * (grid_size + 2)][h_index] += d1[3].clone();
+                    hist[g_index + (grid_size + 2) * (grid_size + 2)][h_index + 1] += d0[3].clone();
+                    hist[g_index + (grid_size + 2) * (grid_size + 2) + 1][h_index] += d1[2].clone();
+                    hist[g_index + (grid_size + 2) * (grid_size + 2) + 1][h_index + 1] +=
+                        d0[2].clone();
+                    hist[g_index + (grid_size + 3) * (grid_size + 2)][h_index] += d1[1].clone();
+                    hist[g_index + (grid_size + 3) * (grid_size + 2)][h_index + 1] += d0[1].clone();
+                    hist[g_index + (grid_size + 3) * (grid_size + 2) + 1][h_index] += d1[0].clone();
+                    hist[g_index + (grid_size + 3) * (grid_size + 2) + 1][h_index + 1] +=
+                        d0[0].clone();
+                }
+            }
+        }
     }
 }
 
