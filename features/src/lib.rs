@@ -4,6 +4,7 @@
 mod border;
 mod boundary;
 mod fpfh;
+mod moment;
 mod narf;
 mod normal;
 mod pfh;
@@ -13,6 +14,7 @@ pub use self::{
     border::{BorderEstimation, BorderTraits},
     boundary::BoundaryEstimation,
     fpfh::FpfhEstimation,
+    moment::MomentInvariantEstimation,
     narf::{Narf, NarfEstimation, SurfacePatch},
     normal::NormalEstimation,
     pfh::PfhEstimation,
