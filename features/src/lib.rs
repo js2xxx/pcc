@@ -4,6 +4,7 @@
 mod border;
 mod boundary;
 mod fpfh;
+mod gasd;
 mod moment;
 mod narf;
 mod normal;
@@ -14,6 +15,7 @@ pub use self::{
     border::{BorderEstimation, BorderTraits},
     boundary::BoundaryEstimation,
     fpfh::FpfhEstimation,
+    gasd::{GasdEstimation, GasdOutput},
     moment::MomentInvariantEstimation,
     narf::{Narf, NarfEstimation, SurfacePatch},
     normal::NormalEstimation,

@@ -82,8 +82,7 @@ impl<T: RealField> FrustumCulling<T> {
         let points: [_; 7] = points.map(|point| {
             self.camera_pose
                 .transform_point(&point.into())
-                .coords
-                .insert_row(3, T::one())
+                .to_homogeneous()
         });
 
         [

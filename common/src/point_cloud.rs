@@ -235,6 +235,15 @@ where
             }
         }
     }
+
+    pub fn map<F, R>(&self, f: F) -> PointCloud<R>
+    where
+        F: FnMut(&P) -> R,
+        R: Data,
+    {
+        let iter = self.storage.iter().map(f);
+        PointCloud::from_vec(iter.collect(), self.width)
+    }
 }
 
 impl<P: Point> PointCloud<P>

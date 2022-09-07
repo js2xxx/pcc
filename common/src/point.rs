@@ -45,6 +45,13 @@ pub trait Point: Data {
     {
         nalgebra::Point3::from_homogeneous(self.coords().clone()).unwrap()
     }
+    #[inline]
+    fn with_na_point(self, na_point: nalgebra::Point3<Self::Data>) -> Self
+    where
+        Self::Data: ComplexField,
+    {
+        self.with_coords(na_point.to_homogeneous())
+    }
 
     #[inline]
     fn fields() -> array::IntoIter<FieldInfo, 3> {
