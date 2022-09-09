@@ -8,17 +8,17 @@ use pcc_common::{
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BoundaryEstimation<T: Scalar> {
+pub struct Boundary<T: Scalar> {
     pub angle_threshold: T,
 }
 
-impl<T: Scalar> BoundaryEstimation<T> {
+impl<T: Scalar> Boundary<T> {
     pub fn new(angle_threshold: T) -> Self {
-        BoundaryEstimation { angle_threshold }
+        Boundary { angle_threshold }
     }
 }
 
-impl<T: RealField> BoundaryEstimation<T> {
+impl<T: RealField> Boundary<T> {
     fn boundary<'a, Iter>(&self, pivot: &Vector4<T>, coords: Iter, [u, v]: &[Vector3<T>; 2]) -> bool
     where
         Iter: Iterator<Item = &'a Vector4<T>>,
@@ -48,7 +48,7 @@ impl<T: RealField> BoundaryEstimation<T> {
 
 impl<'a, 'b, T, I, S, N>
     Feature<(&'a PointCloud<I>, &'b PointCloud<N>), PointCloud<bool>, S, SearchType<T>>
-    for BoundaryEstimation<T>
+    for Boundary<T>
 where
     T: RealField,
     I: Point<Data = T> + 'a,

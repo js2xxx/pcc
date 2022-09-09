@@ -37,14 +37,14 @@ impl<T: RealField> PfhPair<T> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct PfhEstimation {
+pub struct Pfh {
     pub cache_len: usize,
     pub subdivision: usize,
 }
 
-impl PfhEstimation {
+impl Pfh {
     pub fn new(cache_size: usize, subdivision: usize) -> Self {
-        PfhEstimation {
+        Pfh {
             cache_len: cache_size,
             subdivision,
         }
@@ -122,7 +122,7 @@ impl PfhEstimation {
 
 impl<'a, 'b, T, I, S, N>
     Feature<(&'a PointCloud<I>, &'b PointCloud<N>), PointCloud<DVector<T>>, S, SearchType<T>>
-    for PfhEstimation
+    for Pfh
 where
     T: RealField + ToPrimitive,
     I: Point<Data = T> + 'a,

@@ -114,15 +114,15 @@ impl GasdData {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct GasdEstimation<T: Scalar> {
+pub struct Gasd<T: Scalar> {
     pub view_direction: Vector3<T>,
     pub data: GasdData,
 }
 
-impl<T: Scalar> GasdEstimation<T> {
+impl<T: Scalar> Gasd<T> {
     #[inline]
     pub fn new(view_direction: Vector3<T>, data: GasdData) -> Self {
-        GasdEstimation {
+        Gasd {
             view_direction,
             data,
         }
@@ -159,7 +159,7 @@ impl<T: Scalar> GasdEstimation<T> {
     }
 }
 
-impl<'a, T, P> Feature<&'a PointCloud<P>, Option<GasdOutput<P>>, (), ()> for GasdEstimation<T>
+impl<'a, T, P> Feature<&'a PointCloud<P>, Option<GasdOutput<P>>, (), ()> for Gasd<T>
 where
     T: RealField + ToPrimitive,
     P: Point<Data = T>,
@@ -205,15 +205,15 @@ where
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct GasdColorEstimation<T: Scalar> {
+pub struct GasdColor<T: Scalar> {
     pub view_direction: Vector3<T>,
     pub data: GasdData,
     pub color: GasdData,
 }
 
-impl<T: Scalar> GasdColorEstimation<T> {
+impl<T: Scalar> GasdColor<T> {
     pub fn new(view_direction: Vector3<T>, data: GasdData, color: GasdData) -> Self {
-        GasdColorEstimation {
+        GasdColor {
             view_direction,
             data,
             color,
@@ -221,13 +221,13 @@ impl<T: Scalar> GasdColorEstimation<T> {
     }
 }
 
-impl<'a, T, P> Feature<&'a PointCloud<P>, Option<GasdOutput<P>>, (), ()> for GasdColorEstimation<T>
+impl<'a, T, P> Feature<&'a PointCloud<P>, Option<GasdOutput<P>>, (), ()> for GasdColor<T>
 where
     T: RealField + ToPrimitive,
     P: PointRgba<Data = T>,
 {
     fn compute(&self, input: &'a PointCloud<P>, _: (), _: ()) -> Option<GasdOutput<P>> {
-        let new = GasdEstimation::new(self.view_direction.clone(), self.data);
+        let new = Gasd::new(self.view_direction.clone(), self.data);
         let mut output = new.compute(input, (), ())?;
 
         let [min, max] = output.transformed.finite_bound()?;

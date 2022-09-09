@@ -9,7 +9,7 @@ use pcc_common::{
 use crate::{pfh::PfhPair, HIST_MAX};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct VfhEstimation<T: Scalar> {
+pub struct Vfh<T: Scalar> {
     pub subdivision: [usize; 4],
     pub viewpoint: Vector4<T>,
     pub subd_vp: usize,
@@ -18,7 +18,7 @@ pub struct VfhEstimation<T: Scalar> {
     pub has_size: bool,
 }
 
-impl<T: Scalar> VfhEstimation<T> {
+impl<T: Scalar> Vfh<T> {
     #[inline]
     pub fn new(
         subdivision: [usize; 4],
@@ -28,7 +28,7 @@ impl<T: Scalar> VfhEstimation<T> {
         centroid: Option<Vector4<T>>,
         has_size: bool,
     ) -> Self {
-        VfhEstimation {
+        Vfh {
             subdivision,
             viewpoint,
             subd_vp,
@@ -39,7 +39,7 @@ impl<T: Scalar> VfhEstimation<T> {
     }
 }
 
-impl<T: RealField + ToPrimitive> VfhEstimation<T> {
+impl<T: RealField + ToPrimitive> Vfh<T> {
     fn point_spfh<P, N>(
         &self,
         points: &[P],
@@ -109,7 +109,7 @@ impl<T: RealField + ToPrimitive> VfhEstimation<T> {
 }
 
 impl<'a, 'b, T, I, N> Feature<(&'a PointCloud<I>, &'b PointCloud<N>), DVector<T>, (), ()>
-    for VfhEstimation<T>
+    for Vfh<T>
 where
     T: RealField + ToPrimitive,
     I: Point<Data = T> + 'a,

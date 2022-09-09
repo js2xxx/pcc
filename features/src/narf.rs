@@ -98,14 +98,14 @@ impl<T: RealField + Float> SurfacePatch<T> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub struct Narf<T: RealField> {
+pub struct NarfData<T: RealField> {
     pub position: Vector4<T>,
     pub transform: Affine3<T>,
     pub descriptor: Vec<T>,
     pub surface_patch: SurfacePatch<T>,
 }
 
-impl<T: RealField + Float + ToPrimitive> Narf<T> {
+impl<T: RealField + Float + ToPrimitive> NarfData<T> {
     pub fn new<P>(
         range_image: &RangeImage<P>,
         pose: Affine3<T>,
@@ -121,7 +121,7 @@ impl<T: RealField + Float + ToPrimitive> Narf<T> {
         surface_patch.blur(1);
         let descriptor = Self::extract(desc_size, &surface_patch, &mut Vec::new());
 
-        Narf {
+        NarfData {
             position,
             transform: pose,
             descriptor,
@@ -135,7 +135,7 @@ impl<T: RealField + Float + ToPrimitive> Narf<T> {
         desc_size: usize,
         pixel_size: usize,
         world_size: T,
-    ) -> impl Iterator<Item = Narf<T>>
+    ) -> impl Iterator<Item = NarfData<T>>
     where
         P: PointRange<Data = T>,
     {
@@ -153,7 +153,7 @@ impl<T: RealField + Float + ToPrimitive> Narf<T> {
         desc_size: usize,
         pixel_size: usize,
         world_size: T,
-    ) -> impl ParallelIterator<Item = Narf<T>>
+    ) -> impl ParallelIterator<Item = NarfData<T>>
     where
         P: PointRange<Data = T>,
     {
@@ -315,16 +315,16 @@ where
 
 impl<I: ExactSizeIterator> ExactSizeIterator for Next2Window<I> where I::Item: Clone {}
 
-pub struct NarfEstimation<T: RealField> {
+pub struct Narf<T: RealField> {
     pub desc_size: usize,
     pub pixel_size: usize,
     pub world_size: T,
     pub rotate: bool,
 }
 
-impl<T: RealField> NarfEstimation<T> {
+impl<T: RealField> Narf<T> {
     pub fn new(desc_size: usize, pixel_size: usize, world_size: T, rotate: bool) -> Self {
-        NarfEstimation {
+        Narf {
             desc_size,
             pixel_size,
             world_size,
@@ -333,12 +333,12 @@ impl<T: RealField> NarfEstimation<T> {
     }
 }
 
-impl<'a, T, P> Feature<&'a RangeImage<P>, Vec<Narf<T>>, (), ()> for NarfEstimation<T>
+impl<'a, T, P> Feature<&'a RangeImage<P>, Vec<NarfData<T>>, (), ()> for Narf<T>
 where
     T: RealField + Float + ToPrimitive,
     P: PointRange<Data = T> + Sync,
 {
-    fn compute(&self, input: &'a RangeImage<P>, _: (), _: ()) -> Vec<Narf<T>> {
+    fn compute(&self, input: &'a RangeImage<P>, _: (), _: ()) -> Vec<NarfData<T>> {
         let transform = (0..input.len()).into_par_iter().filter_map(|index| {
             let [x, y] = input.index(index);
 
@@ -352,7 +352,7 @@ where
 
         if self.rotate {
             let narfs = transform.flat_map(|transform| {
-                Narf::rotated_into_par(
+                NarfData::rotated_into_par(
                     input,
                     convert(transform),
                     self.desc_size,
@@ -363,7 +363,7 @@ where
             narfs.collect()
         } else {
             let narfs = transform.map(|transform| {
-                Narf::new(
+                NarfData::new(
                     input,
                     convert(transform),
                     self.desc_size,

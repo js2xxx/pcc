@@ -7,9 +7,9 @@ use pcc_common::{
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct MomentInvariantEstimation;
+pub struct MomentInvariant;
 
-impl MomentInvariantEstimation {
+impl MomentInvariant {
     fn point_mi<T, P>(
         result: &[(usize, T)],
         input: &PointCloud<P>,
@@ -34,7 +34,7 @@ impl MomentInvariantEstimation {
 }
 
 impl<'a, T, P, S> Feature<&'a PointCloud<P>, Option<PointCloud<Vector3<T>>>, S, SearchType<T>>
-    for MomentInvariantEstimation
+    for MomentInvariant
 where
     T: RealField,
     P: Point<Data = T>,

@@ -14,17 +14,17 @@ use pcc_common::{
 use crate::{pfh::PfhPair, HIST_MAX};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct FpfhEstimation {
+pub struct Fpfh {
     pub subdivision: [usize; 3],
 }
 
-impl FpfhEstimation {
+impl Fpfh {
     pub fn new(subdivision: [usize; 3]) -> Self {
-        FpfhEstimation { subdivision }
+        Fpfh { subdivision }
     }
 }
 
-impl FpfhEstimation {
+impl Fpfh {
     fn point_spfh<T, P, N>(
         &self,
         pivot: usize,
@@ -66,7 +66,7 @@ impl FpfhEstimation {
     }
 }
 
-impl FpfhEstimation {
+impl Fpfh {
     fn compute_spfh<'a, T: RealField, P, S, N>(
         &self,
         input: &PointCloud<P>,
@@ -155,7 +155,7 @@ impl FpfhEstimation {
 
 impl<'a, 'b, T, I, S, N>
     Feature<(&'a PointCloud<I>, &'b PointCloud<N>), PointCloud<DVector<T>>, S, SearchType<T>>
-    for FpfhEstimation
+    for Fpfh
 where
     T: RealField + ToPrimitive,
     I: Point<Data = T> + 'a,

@@ -87,19 +87,19 @@ impl DataFields for BorderTraits {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
-pub struct BorderEstimation<T> {
+pub struct Border<T> {
     pub min_border_probability: T,
     pub radius_plane_extraction: usize,
     pub radius_borders: usize,
 }
 
-impl<T> BorderEstimation<T> {
+impl<T> Border<T> {
     pub fn new(
         min_border_probability: T,
         radius_plane_extraction: usize,
         radius_borders: usize,
     ) -> Self {
-        BorderEstimation {
+        Border {
             min_border_probability,
             radius_plane_extraction,
             radius_borders,
@@ -364,7 +364,7 @@ impl<T> BorderEstimation<T> {
 }
 
 impl<'a, T, P> Feature<&'a RangeImage<P>, Option<PointCloud<BorderTraits>>, (), ()>
-    for BorderEstimation<T>
+    for Border<T>
 where
     T: RealField + ToPrimitive + Default,
     P: Sync + PointRange<Data = T> + Centroid<Result = P>,

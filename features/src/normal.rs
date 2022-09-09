@@ -1,29 +1,29 @@
 use nalgebra::{RealField, Scalar, Vector4};
 use pcc_common::{
     feature::Feature,
-    point::{Normal, Point},
+    point::Point,
     point_cloud::PointCloud,
     search::{Search, SearchType},
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct NormalEstimation<T: Scalar> {
+pub struct Normal<T: Scalar> {
     pub viewpoint: Vector4<T>,
 }
 
-impl<T: Scalar> NormalEstimation<T> {
+impl<T: Scalar> Normal<T> {
     pub fn new(viewpoint: Vector4<T>) -> Self {
-        NormalEstimation { viewpoint }
+        Normal { viewpoint }
     }
 }
 
 impl<'a, T, I, O, S> Feature<&'a PointCloud<I>, PointCloud<O>, S, SearchType<T>>
-    for NormalEstimation<T>
+    for Normal<T>
 where
     T: RealField,
     I: Point<Data = T> + 'a,
     S: Search<'a, I>,
-    O: Normal<Data = T>,
+    O: pcc_common::point::Normal<Data = T>,
 {
     fn compute(
         &self,
