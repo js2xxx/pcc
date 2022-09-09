@@ -67,9 +67,9 @@ impl<'a, P> Index<(usize, usize)> for PointCloudRef<'a, P> {
 }
 
 pub trait AsPointCloud<'a, P: 'a> {
-    fn inner(&self) -> &'a PointCloud<P>;
+    fn inner(&self) -> &PointCloud<P>;
 
-    fn as_ref(&self) -> PointCloudRef<'a, P>;
+    fn as_ref(&self) -> PointCloudRef<'_, P>;
 
     fn is_bounded(&self) -> bool;
 
@@ -465,14 +465,17 @@ where
     }
 }
 
-impl<'a, P> AsPointCloud<'a, P> for &'a PointCloud<P> {
+impl<'a, P> AsPointCloud<'a, P> for PointCloud<P>
+where
+    P: 'a,
+{
     #[inline]
-    fn inner(&self) -> &'a PointCloud<P> {
+    fn inner(&self) -> &PointCloud<P> {
         self
     }
 
     #[inline]
-    fn as_ref(&self) -> PointCloudRef<'a, P> {
+    fn as_ref(&self) -> PointCloudRef<'_, P> {
         PointCloudRef::new(self, None)
     }
 

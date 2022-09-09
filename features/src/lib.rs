@@ -15,7 +15,7 @@ pub use self::{
     border::{BorderEstimation, BorderTraits},
     boundary::BoundaryEstimation,
     fpfh::FpfhEstimation,
-    gasd::{GasdEstimation, GasdOutput},
+    gasd::{GasdColorEstimation, GasdData, GasdEstimation, GasdOutput},
     moment::MomentInvariantEstimation,
     narf::{Narf, NarfEstimation, SurfacePatch},
     normal::NormalEstimation,

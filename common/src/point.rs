@@ -64,7 +64,7 @@ pub trait Point: Data {
     }
 }
 
-/// Lower bits <---[b; g; r; a]: [u8; 4]---- Higher bits
+/// Lower bits <---[b, g, r, a]: [u8; 4]---- Higher bits
 pub trait PointRgba: Point {
     fn rgb_value(&self) -> Self::Data;
 

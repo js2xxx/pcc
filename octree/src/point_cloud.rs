@@ -5,7 +5,10 @@ use std::{
 
 use nalgebra::{convert, ComplexField, RealField, Scalar, Vector4};
 use num::ToPrimitive;
-use pcc_common::{point::Point, point_cloud::{PointCloud, AsPointCloud}};
+use pcc_common::{
+    point::Point,
+    point_cloud::{AsPointCloud, PointCloud},
+};
 
 use crate::OcTree;
 
