@@ -363,8 +363,7 @@ impl<T> Border<T> {
     }
 }
 
-impl<'a, T, P> Feature<&'a RangeImage<P>, Option<PointCloud<BorderTraits>>, (), ()>
-    for Border<T>
+impl<'a, T, P> Feature<&'a RangeImage<P>, Option<PointCloud<BorderTraits>>, (), ()> for Border<T>
 where
     T: RealField + ToPrimitive + Default,
     P: Sync + PointRange<Data = T> + Centroid<Result = P>,

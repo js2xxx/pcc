@@ -79,12 +79,12 @@ where
         search: S,
         ty: SearchType<T>,
     ) -> PointCloud<Vector3<T>> {
-        fn collect<T: Send + Sync>(
+        fn collect<T: Clone + Send + Sync>(
             iter: impl ParallelIterator<Item = (bool, Vector3<T>)>,
             init: bool,
         ) -> (Vec<Vector3<T>>, bool) {
-            let fold = iter.fold(
-                || (Vec::new(), init),
+            let fold = iter.fold_with(
+                (Vec::new(), init),
                 |(mut storage, bounded), (b2, gradient)| {
                     storage.push(gradient);
                     (storage, bounded & b2)

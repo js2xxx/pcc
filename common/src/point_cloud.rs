@@ -11,7 +11,7 @@ use nalgebra::{ComplexField, RealField, Vector4};
 
 pub use self::reference::{AsPointCloud, PointCloudRef};
 use self::transforms::Transform;
-use crate::point::{Data, Point};
+use crate::point::{Data, Normal, Point};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PointCloud<P> {
@@ -209,7 +209,31 @@ impl<P> Default for PointCloud<P> {
     }
 }
 
-impl<P: Point> PointCloud<P> where P::Data: RealField {}
+impl<P: Normal> PointCloud<P>
+where
+    P::Data: RealField,
+{
+    pub fn transform_normal<Z: Transform<P::Data>>(&self, z: &Z, out: &mut Self) {
+        out.storage
+            .resize_with(self.storage.len(), Default::default);
+
+        out.width = self.width;
+        out.bounded = self.bounded;
+
+        if self.bounded {
+            for (from, to) in self.storage.iter().zip(out.storage.iter_mut()) {
+                z.so3(from.normal(), to.normal_mut())
+            }
+        } else {
+            for (from, to) in self.storage.iter().zip(out.storage.iter_mut()) {
+                if !from.is_finite() {
+                    continue;
+                }
+                z.so3(from.normal(), to.normal_mut())
+            }
+        }
+    }
+}
 
 impl<P: Point> PointCloud<P>
 where
@@ -242,6 +266,21 @@ where
         R: Data,
     {
         let iter = self.storage.iter().map(f);
+        PointCloud::from_vec(iter.collect(), self.width)
+    }
+
+    pub fn zip_map<F, Q, R>(&self, other: &PointCloud<Q>, mut f: F) -> PointCloud<R>
+    where
+        F: FnMut(&P, &Q) -> R,
+        Q: Data,
+        R: Data,
+    {
+        assert_eq!(self.width, other.width);
+        assert_eq!(self.storage.len(), other.storage.len());
+
+        let iter = { self.storage.iter() }
+            .zip(other.storage.iter())
+            .map(|(p, q)| f(p, q));
         PointCloud::from_vec(iter.collect(), self.width)
     }
 }

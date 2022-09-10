@@ -108,8 +108,7 @@ impl<T: RealField + ToPrimitive> Vfh<T> {
     }
 }
 
-impl<'a, 'b, T, I, N> Feature<(&'a PointCloud<I>, &'b PointCloud<N>), DVector<T>, (), ()>
-    for Vfh<T>
+impl<'a, 'b, T, I, N> Feature<(&'a PointCloud<I>, &'b PointCloud<N>), DVector<T>, (), ()> for Vfh<T>
 where
     T: RealField + ToPrimitive,
     I: Point<Data = T> + 'a,

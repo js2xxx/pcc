@@ -17,8 +17,7 @@ impl<T: Scalar> Normal<T> {
     }
 }
 
-impl<'a, T, I, O, S> Feature<&'a PointCloud<I>, PointCloud<O>, S, SearchType<T>>
-    for Normal<T>
+impl<'a, T, I, O, S> Feature<&'a PointCloud<I>, PointCloud<O>, S, SearchType<T>> for Normal<T>
 where
     T: RealField,
     I: Point<Data = T> + 'a,

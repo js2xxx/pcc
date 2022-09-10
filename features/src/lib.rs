@@ -3,6 +3,7 @@
 
 mod border;
 mod boundary;
+mod crh;
 mod fpfh;
 mod gasd;
 mod intensity;
@@ -15,6 +16,7 @@ mod vfh;
 pub use self::{
     border::{Border, BorderTraits},
     boundary::Boundary,
+    crh::Crh,
     fpfh::Fpfh,
     gasd::{Gasd, GasdColor, GasdData, GasdOutput},
     intensity::IntensityGradient,
